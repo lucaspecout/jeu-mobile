@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "Mobile Game",
+    "slug": "mobile-game",
+    "version": "1.0.0",
+    "scheme": "mobilegame",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}
