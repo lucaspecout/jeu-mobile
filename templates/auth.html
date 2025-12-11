@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Protec Rescue 38 - Connexion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  </head>
+  <body>
+    <div id="splash" class="splash">
+      <div class="splash__glow"></div>
+      <div class="splash__content">
+        <p class="splash__eyebrow">Chargement du hub</p>
+        <div class="splash__title" id="splash-title">Protec Rescue 38</div>
+        <p class="splash__tagline">Initialisation des protocoles sécurisés avant connexion.</p>
+      </div>
+    </div>
+
+    <div id="auth-shell" class="app-shell hidden">
+      <div class="grid-bg" aria-hidden="true"></div>
+      <div class="scanline" aria-hidden="true"></div>
+
+      <header class="hero">
+        <div class="hero__content">
+          <p class="hero__eyebrow">Centre de contrôle</p>
+          <h1>Accès sécurisé</h1>
+          <p class="hero__tagline">Connectez-vous ou activez un profil pour rejoindre le cockpit des missions.</p>
+          <div class="hero__badges">
+            <span class="chip">Connexion serveur</span>
+            <span class="chip">Création instantanée</span>
+            <span class="chip">Session protégée</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="shell">
+        <section class="panel panel--frost">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Identité</p>
+              <h2>Connexion / Création</h2>
+              <p class="muted">Basculer entre les onglets pour vous connecter ou activer un compte.</p>
+            </div>
+            <a class="btn ghost" href="/">Retourner à l'accueil</a>
+          </div>
+          <div class="auth-grid">
+            <div class="card card--glass">
+              <div class="tabs" role="tablist">
+                <button class="tab active" data-target="login">Connexion</button>
+                <button class="tab" data-target="register">Création</button>
+              </div>
+              <form id="login-form" class="form" data-panel="login">
+                <label>E-mail
+                  <input name="email" type="email" autocomplete="email" required>
+                </label>
+                <label>Mot de passe
+                  <input name="password" type="password" autocomplete="current-password" required>
+                </label>
+                <button class="btn primary" type="submit">Entrer dans le hub</button>
+              </form>
+              <form id="register-form" class="form hidden" data-panel="register">
+                <label>Pseudo
+                  <input name="username" type="text" autocomplete="username" required>
+                </label>
+                <label>E-mail
+                  <input name="email" type="email" autocomplete="email" required>
+                </label>
+                <label>Mot de passe
+                  <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+                </label>
+                <button class="btn secondary" type="submit">Activer un profil</button>
+              </form>
+              <div class="alert hidden" id="auth-alert"></div>
+            </div>
+
+            <div class="card card--glass status">
+              <p class="eyebrow">Protocole</p>
+              <h3>Interface scindée</h3>
+              <p class="muted">L'authentification est isolée de l'accueil du jeu. Une fois connecté, vous serez redirigé vers le cockpit.</p>
+              <div class="status__grid">
+                <div>
+                  <p class="label">Sécurité</p>
+                  <p class="pulse">Session protégée</p>
+                </div>
+                <div>
+                  <p class="label">Base</p>
+                  <p>SQLite / Postgres</p>
+                </div>
+                <div>
+                  <p class="label">Progression</p>
+                  <p>Synchronisée</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+  </body>
+</html>

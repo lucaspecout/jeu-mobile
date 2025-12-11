@@ -2,7 +2,7 @@ const qs = (sel) => document.querySelector(sel);
 const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
 const levelMenu = qs('#level-menu');
-const authAlert = qs('#auth-alert');
+const appAlert = qs('#app-alert');
 const logoutBtn = qs('#logout-btn');
 const statusTitle = qs('#status-title');
 const statusSub = qs('#status-sub');
@@ -11,13 +11,14 @@ const statusProgress = qs('#status-progress');
 const logPanel = qs('#log-panel');
 
 function setAlert(message, isError = true) {
-  authAlert.textContent = message;
-  authAlert.classList.remove('hidden');
-  authAlert.style.background = isError ? 'rgba(255,63,171,0.12)' : 'rgba(58,242,255,0.15)';
+  if (!appAlert) return;
+  appAlert.textContent = message;
+  appAlert.classList.remove('hidden');
+  appAlert.style.background = isError ? 'rgba(255,63,171,0.12)' : 'rgba(58,242,255,0.15)';
 }
 
 function clearAlert() {
-  authAlert.classList.add('hidden');
+  if (appAlert) appAlert.classList.add('hidden');
 }
 
 function updateStatus(user, progressCount) {
@@ -74,47 +75,25 @@ function iconFor(icon) {
 }
 
 async function refreshMenu() {
-  const data = await fetch('/api/menu').then((r) => r.json());
+  const res = await fetch('/api/menu');
+  if (res.status === 401) {
+    window.location.href = '/auth';
+    return;
+  }
+  const data = await res.json();
   levelMenu.innerHTML = '';
   data.levels.forEach((lvl) => levelMenu.appendChild(renderLevel(lvl)));
   updateStatus(data.user, data.levels.filter((l) => l.progress).length);
 }
 
-async function handleAuth(formId, endpoint) {
-  const form = qs(formId);
-  form.addEventListener('submit', async (evt) => {
-    evt.preventDefault();
-    clearAlert();
-    const payload = Object.fromEntries(new FormData(form));
+function setupLogout() {
+  logoutBtn.addEventListener('click', async () => {
     try {
-      const result = await postJson(endpoint, payload);
-      setAlert(`Bienvenue ${result.username}`, false);
-      await refreshMenu();
+      await postJson('/api/logout', {});
+      window.location.href = '/auth';
     } catch (err) {
       setAlert(err.message);
     }
-  });
-}
-
-function setupTabs() {
-  const tabs = qsa('.tab');
-  tabs.forEach((tab) => {
-    tab.addEventListener('click', () => {
-      tabs.forEach((t) => t.classList.remove('active'));
-      tab.classList.add('active');
-      const target = tab.dataset.target;
-      qsa('[data-panel]').forEach((panel) => {
-        panel.classList.toggle('hidden', panel.dataset.panel !== target);
-      });
-    });
-  });
-}
-
-function setupLogout() {
-  logoutBtn.addEventListener('click', async () => {
-    await postJson('/api/logout', {});
-    await refreshMenu();
-    setAlert('Session terminée', false);
   });
 }
 
@@ -153,9 +132,6 @@ function setupSimulator() {
 }
 
 async function init() {
-  setupTabs();
-  handleAuth('#login-form', '/api/login');
-  handleAuth('#register-form', '/api/register');
   setupLogout();
   setupMenuActions();
   setupSimulator();

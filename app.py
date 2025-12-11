@@ -1,6 +1,6 @@
 import os
 from datetime import datetime
-from flask import Flask, jsonify, render_template, request, session
+from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -127,9 +127,18 @@ def register_routes(app: Flask) -> None:
     @app.route("/")
     def home():
         user = current_user()
+        if not user:
+            return redirect(url_for("auth"))
         progress_map = {p.level_id: serialize_progress(p) for p in (user.progress if user else [])}
         levels = [serialize_level(level, progress_map.get(level.id)) for level in Level.query.all()]
         return render_template("index.html", levels=levels, user=user)
+
+    @app.route("/auth")
+    def auth():
+        user = current_user()
+        if user:
+            return redirect(url_for("home"))
+        return render_template("auth.html")
 
     @app.route("/api/register", methods=["POST"])
     def api_register():
@@ -166,6 +175,8 @@ def register_routes(app: Flask) -> None:
     @app.route("/api/menu")
     def api_menu():
         user = current_user()
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
         progress_map = {p.level_id: serialize_progress(p) for p in (user.progress if user else [])}
         levels = [serialize_level(level, progress_map.get(level.id)) for level in Level.query.all()]
         return jsonify({"levels": levels, "user": user.username if user else None})
