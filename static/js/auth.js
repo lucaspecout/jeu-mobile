@@ -41,6 +41,10 @@ function setupTabs() {
   });
 }
 
+function persistAuthState() {
+  localStorage.setItem('isAuthenticated', 'true');
+}
+
 async function handleAuth(formId, endpoint) {
   const form = qs(formId);
   if (!form) return;
@@ -50,6 +54,7 @@ async function handleAuth(formId, endpoint) {
     const payload = Object.fromEntries(new FormData(form));
     try {
       await postJson(endpoint, payload);
+      persistAuthState();
       setAlert('Connexion réussie, redirection en cours…', false);
       window.location.href = '/';
     } catch (err) {
@@ -73,6 +78,13 @@ function playSplashThenInit() {
   const splash = qs('#splash');
   const title = qs('#splash-title');
   const shell = qs('#auth-shell');
+
+  if (localStorage.getItem('isAuthenticated') === 'true') {
+    splash?.classList.add('hidden');
+    shell?.classList.remove('hidden');
+    init();
+    return;
+  }
 
   if (!splash || !title || !shell) {
     init();

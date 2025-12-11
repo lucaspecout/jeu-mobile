@@ -10,6 +10,10 @@ const statusUser = qs('#status-user');
 const statusProgress = qs('#status-progress');
 const logPanel = qs('#log-panel');
 
+function clearAuthState() {
+  localStorage.removeItem('isAuthenticated');
+}
+
 function setAlert(message, isError = true) {
   if (!appAlert) return;
   appAlert.textContent = message;
@@ -77,6 +81,7 @@ function iconFor(icon) {
 async function refreshMenu() {
   const res = await fetch('/api/menu');
   if (res.status === 401) {
+    clearAuthState();
     window.location.href = '/auth';
     return;
   }
@@ -90,6 +95,7 @@ function setupLogout() {
   logoutBtn.addEventListener('click', async () => {
     try {
       await postJson('/api/logout', {});
+      clearAuthState();
       window.location.href = '/auth';
     } catch (err) {
       setAlert(err.message);
@@ -143,6 +149,13 @@ function playSplashThenInit() {
   const splash = qs('#splash');
   const title = qs('#splash-title');
   const appShell = qs('#app-shell');
+
+  if (localStorage.getItem('isAuthenticated') === 'true') {
+    splash?.classList.add('hidden');
+    appShell?.classList.remove('hidden');
+    init();
+    return;
+  }
 
   if (!splash || !title || !appShell) {
     init();
