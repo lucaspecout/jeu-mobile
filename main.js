@@ -3,6 +3,12 @@ const STORAGE_KEYS = {
   session: 'protec-rescue-38-session',
 };
 
+const SECURITY = {
+  iterations: 200000,
+  lockThreshold: 3,
+  lockDuration: 30_000,
+};
+
 const levels = [
   {
     id: 'evaluation-initiale',
@@ -70,7 +76,37 @@ const selectors = {
   userStatus: document.getElementById('user-status'),
   statUsers: document.getElementById('stat-users'),
   statSuccess: document.getElementById('stat-success'),
+  authAlert: document.getElementById('auth-alert'),
+  passwordField: document.getElementById('password-field'),
+  passwordMeter: document.getElementById('password-strength'),
+  passwordLabel: document.getElementById('password-strength-label'),
 };
+
+function encodeBase64(uint8array) {
+  return btoa(String.fromCharCode(...uint8array));
+}
+
+function decodeBase64(str) {
+  return Uint8Array.from(atob(str), char => char.charCodeAt(0));
+}
+
+function createSalt() {
+  const salt = new Uint8Array(16);
+  crypto.getRandomValues(salt);
+  return salt;
+}
+
+async function deriveKey(password, salt, iterations = SECURITY.iterations) {
+  const encoder = new TextEncoder();
+  const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
+  const derivedBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, keyMaterial, 256);
+  return new Uint8Array(derivedBits);
+}
+
+async function hashPassword(password, salt, iterations = SECURITY.iterations) {
+  const derived = await deriveKey(password, salt, iterations);
+  return encodeBase64(derived);
+}
 
 function loadUsers() {
   return JSON.parse(localStorage.getItem(STORAGE_KEYS.users) || '[]');
@@ -81,17 +117,38 @@ function saveUsers(users) {
 }
 
 function setSession(email) {
-  localStorage.setItem(STORAGE_KEYS.session, email);
+  const token = crypto.randomUUID ? crypto.randomUUID() : encodeBase64(createSalt());
+  localStorage.setItem(STORAGE_KEYS.session, JSON.stringify({ email, token, createdAt: Date.now() }));
 }
 
 function clearSession() {
   localStorage.removeItem(STORAGE_KEYS.session);
 }
 
+function currentSession() {
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.session) || 'null');
+}
+
 function currentUser() {
-  const email = localStorage.getItem(STORAGE_KEYS.session);
+  const session = currentSession();
+  if (!session) return null;
   const users = loadUsers();
-  return users.find(u => u.email === email);
+  return users.find(u => u.email === session.email) || null;
+}
+
+function loadLocks() {
+  return JSON.parse(localStorage.getItem('protec-rescue-38-locks') || '{}');
+}
+
+function saveLocks(locks) {
+  localStorage.setItem('protec-rescue-38-locks', JSON.stringify(locks));
+}
+
+function showAlert(message, type = 'info') {
+  selectors.authAlert.textContent = message;
+  selectors.authAlert.className = `alert ${type}`;
+  selectors.authAlert.classList.remove('hidden');
+  setTimeout(() => selectors.authAlert.classList.add('hidden'), 4200);
 }
 
 function updateHeroStats() {
@@ -99,6 +156,85 @@ function updateHeroStats() {
   selectors.statUsers.textContent = users.length;
   const successCount = users.reduce((acc, user) => acc + Object.values(user.progress || {}).filter(l => l.status === 'Réussi').length, 0);
   selectors.statSuccess.textContent = successCount;
+}
+
+function evaluatePasswordStrength(value) {
+  const rules = [value.length >= 8, /[A-Z]/.test(value) && /[a-z]/.test(value), /\d/.test(value), /[^A-Za-z0-9]/.test(value), value.length >= 12];
+  const score = rules.filter(Boolean).length;
+  const level = Math.min(3, Math.max(1, Math.ceil(score / 2)));
+  const label = level === 1 ? 'Sécurité faible' : level === 2 ? 'Sécurité moyenne' : 'Solide et prêt';
+  return { level, label };
+}
+
+function updatePasswordMeter(value) {
+  if (!selectors.passwordMeter) return;
+  const { level, label } = evaluatePasswordStrength(value);
+  const bars = selectors.passwordMeter.querySelectorAll('.password-meter__bar');
+  bars.forEach((bar, index) => {
+    bar.classList.toggle('active', index < level);
+  });
+  selectors.passwordLabel.textContent = label;
+}
+
+function validatePassword(password) {
+  const { level } = evaluatePasswordStrength(password);
+  return level >= 2;
+}
+
+function checkLock(email) {
+  const locks = loadLocks();
+  const lock = locks[email];
+  if (!lock) return 0;
+  if (lock.until && lock.until > Date.now()) {
+    return Math.ceil((lock.until - Date.now()) / 1000);
+  }
+  delete locks[email];
+  saveLocks(locks);
+  return 0;
+}
+
+function recordFailedLogin(email) {
+  const locks = loadLocks();
+  const entry = locks[email] || { count: 0, until: 0 };
+  entry.count += 1;
+  if (entry.count >= SECURITY.lockThreshold) {
+    entry.until = Date.now() + SECURITY.lockDuration;
+    entry.count = 0;
+  }
+  locks[email] = entry;
+  saveLocks(locks);
+  return entry.until && entry.until > Date.now() ? entry.until : 0;
+}
+
+function clearLock(email) {
+  const locks = loadLocks();
+  if (locks[email]) {
+    delete locks[email];
+    saveLocks(locks);
+  }
+}
+
+async function verifyPassword(password, user, users) {
+  if (user.passwordHash && user.salt) {
+    const salt = decodeBase64(user.salt);
+    const hashed = await hashPassword(password, salt, user.iterations || SECURITY.iterations);
+    return hashed === user.passwordHash;
+  }
+
+  if (user.password) {
+    const isValid = user.password === password;
+    if (isValid) {
+      const salt = createSalt();
+      user.passwordHash = await hashPassword(password, salt);
+      user.salt = encodeBase64(salt);
+      user.iterations = SECURITY.iterations;
+      delete user.password;
+      saveUsers(users);
+    }
+    return isValid;
+  }
+
+  return false;
 }
 
 function showDashboard(user) {
@@ -120,9 +256,10 @@ function showDashboard(user) {
 function showAuth() {
   selectors.dashboard.classList.add('hidden');
   selectors.authSection.classList.remove('hidden');
+  selectors.authAlert.classList.add('hidden');
 }
 
-function handleRegister(event) {
+async function handleRegister(event) {
   event.preventDefault();
   const form = new FormData(event.target);
   const username = form.get('username').trim();
@@ -131,14 +268,24 @@ function handleRegister(event) {
 
   const users = loadUsers();
   if (users.find(u => u.email === email)) {
-    alert('Un compte existe déjà avec cet e-mail.');
+    showAlert('Un compte existe déjà avec cet e-mail.', 'error');
     return;
   }
+
+  if (!validatePassword(password)) {
+    showAlert('Choisissez un mot de passe plus robuste (majuscules, chiffres et symbole).', 'error');
+    return;
+  }
+
+  const salt = createSalt();
+  const passwordHash = await hashPassword(password, salt);
 
   const newUser = {
     username,
     email,
-    password,
+    passwordHash,
+    salt: encodeBase64(salt),
+    iterations: SECURITY.iterations,
     progress: {},
     points: 0,
   };
@@ -147,27 +294,51 @@ function handleRegister(event) {
   saveUsers(users);
   setSession(email);
   selectors.registerForm.reset();
+  updatePasswordMeter('');
+  showAlert('Compte créé avec chiffrement avancé. Bienvenue !', 'success');
   showDashboard(newUser);
 }
 
-function handleLogin(event) {
+async function handleLogin(event) {
   event.preventDefault();
   const form = new FormData(event.target);
   const email = form.get('email').trim().toLowerCase();
   const password = form.get('password').trim();
-  const user = loadUsers().find(u => u.email === email && u.password === password);
-  if (!user) {
-    alert('Identifiants invalides.');
+  const remainingLock = checkLock(email);
+  if (remainingLock > 0) {
+    showAlert(`Compte verrouillé pendant ${remainingLock}s après plusieurs tentatives.`, 'error');
     return;
   }
+
+  const users = loadUsers();
+  const user = users.find(u => u.email === email);
+  if (!user) {
+    recordFailedLogin(email);
+    showAlert('Identifiants invalides.', 'error');
+    return;
+  }
+
+  const valid = await verifyPassword(password, user, users);
+  if (!valid) {
+    const until = recordFailedLogin(email);
+    const message = until
+      ? 'Trop de tentatives : connexion verrouillée quelques secondes.'
+      : 'Identifiants invalides.';
+    showAlert(message, 'error');
+    return;
+  }
+
+  clearLock(email);
   setSession(email);
   selectors.loginForm.reset();
+  showAlert('Connexion sécurisée réussie.', 'success');
   showDashboard(user);
 }
 
 function logout() {
   clearSession();
   showAuth();
+  showAlert('Session terminée en toute sécurité.', 'success');
 }
 
 function renderLevels(user) {
@@ -316,12 +487,16 @@ function init() {
   selectors.loginForm.addEventListener('submit', handleLogin);
   selectors.registerForm.addEventListener('submit', handleRegister);
   selectors.logoutBtn.addEventListener('click', logout);
+  selectors.passwordField?.addEventListener('input', (event) => updatePasswordMeter(event.target.value));
+  updatePasswordMeter('');
 
   updateHeroStats();
 
   const user = currentUser();
   if (user) {
     showDashboard(user);
+  } else {
+    clearSession();
   }
 }
 
