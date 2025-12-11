@@ -104,6 +104,18 @@ def serialize_progress(progress: Progress):
     }
 
 
+def serialize_level(level: Level, progress=None):
+    return {
+        "id": level.id,
+        "slug": level.slug,
+        "name": level.name,
+        "description": level.description,
+        "difficulty": level.difficulty,
+        "icon": level.icon,
+        "progress": progress,
+    }
+
+
 def current_user():
     user_id = session.get("user_id")
     if not user_id:
@@ -114,7 +126,10 @@ def current_user():
 def register_routes(app: Flask) -> None:
     @app.route("/")
     def home():
-        return render_template("index.html", levels=Level.query.all(), user=current_user())
+        user = current_user()
+        progress_map = {p.level_id: serialize_progress(p) for p in (user.progress if user else [])}
+        levels = [serialize_level(level, progress_map.get(level.id)) for level in Level.query.all()]
+        return render_template("index.html", levels=levels, user=user)
 
     @app.route("/api/register", methods=["POST"])
     def api_register():
@@ -152,19 +167,7 @@ def register_routes(app: Flask) -> None:
     def api_menu():
         user = current_user()
         progress_map = {p.level_id: serialize_progress(p) for p in (user.progress if user else [])}
-        levels = []
-        for level in Level.query.all():
-            levels.append(
-                {
-                    "id": level.id,
-                    "slug": level.slug,
-                    "name": level.name,
-                    "description": level.description,
-                    "difficulty": level.difficulty,
-                    "icon": level.icon,
-                    "progress": progress_map.get(level.id),
-                }
-            )
+        levels = [serialize_level(level, progress_map.get(level.id)) for level in Level.query.all()]
         return jsonify({"levels": levels, "user": user.username if user else None})
 
     @app.route("/api/progress/<int:level_id>", methods=["POST"])
