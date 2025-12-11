@@ -62,12 +62,19 @@
               <input type="email" name="email" required>
             </label>
             <label>Mot de passe
-              <input type="password" name="password" minlength="6" required>
+              <input type="password" name="password" id="password-field" minlength="8" required>
             </label>
+            <div class="password-meter" id="password-strength">
+              <span class="password-meter__bar"></span>
+              <span class="password-meter__bar"></span>
+              <span class="password-meter__bar"></span>
+              <span class="password-meter__label" id="password-strength-label">Sécurité faible</span>
+            </div>
             <button type="submit" class="btn secondary">Créer un compte</button>
           </form>
         </div>
       </div>
+      <div id="auth-alert" class="alert hidden"></div>
       <p class="helper">Les comptes sont enregistrés localement pour vous permettre de continuer votre progression.</p>
     </section>
 
