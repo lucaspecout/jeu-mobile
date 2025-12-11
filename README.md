@@ -7,6 +7,15 @@ Prototype de jeu web en français basé sur le référentiel PSE (Premiers Secou
 2. Créez un compte ou connectez-vous.
 3. Choisissez un module PSE et lancez la simulation.
 
+## Exécuter avec Docker
+1. Construisez l'image : `docker build -t protec-rescue-38 .`.
+2. Lancez le conteneur : `docker run -p 8080:80 protec-rescue-38`.
+3. Ouvrez le jeu sur `http://localhost:8080`.
+
+### Via Docker Compose
+1. Démarrez le service : `docker compose up --build`.
+2. Ouvrez le jeu sur `http://localhost:8080`.
+
 ## Fonctionnalités clés
 - **Création de compte / connexion** : stockage local avec persistance de la progression.
 - **Niveaux PSE** : évaluation initiale, bilan vital, gestes de secours avec scénarios et explications.
