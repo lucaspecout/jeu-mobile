@@ -15,9 +15,11 @@ Prototype de jeu web en français basé sur le référentiel PSE (Premiers Secou
 ### Via Docker Compose
 1. Démarrez le service : `docker compose up --build`.
 2. Ouvrez le jeu sur `http://localhost:8080`.
+3. Un PostgreSQL est lancé pour préparer une persistance serveur (`DATABASE_URL` injectée côté app), même si le prototype reste 100% front-end pour le moment.
 
 ## Fonctionnalités clés
 - **Création de compte / connexion** : stockage local avec persistance de la progression.
+- **Quizz éclair & défis** : questions rapides, objectifs quotidiens et récompenses animées pour dynamiser l'entraînement.
 - **Niveaux PSE** : évaluation initiale, bilan vital, gestes de secours avec scénarios et explications.
 - **Statuts** : Non commencé, En cours, Réussi avec score cumulatif.
 - **Tableau d'honneur** : top 5 des secouristes selon les points accumulés.

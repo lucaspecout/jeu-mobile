@@ -280,11 +280,31 @@ input:focus {
   gap: 16px;
 }
 
+.grid--extended {
+  margin-top: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+}
+
 .panel {
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
   padding: 16px;
   border-radius: 12px;
+}
+
+.panel--accent {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(56, 189, 248, 0.25);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.02), rgba(6, 182, 212, 0.04));
+  box-shadow: 0 10px 35px rgba(6, 182, 212, 0.12);
+}
+
+.panel__heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .panel h3 {
@@ -396,6 +416,150 @@ input:focus {
   border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.quiz-area {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.quiz-card {
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 12px;
+  border-radius: 12px;
+  background: radial-gradient(circle at 20% 20%, rgba(56, 189, 248, 0.12), transparent 50%), rgba(255, 255, 255, 0.02);
+  position: relative;
+  overflow: hidden;
+}
+
+.quiz-card::before {
+  content: '';
+  position: absolute;
+  inset: -40% auto auto 60%;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.14), transparent 60%);
+  filter: blur(12px);
+  animation: float 7s ease-in-out infinite;
+}
+
+.quiz-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.quiz-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.challenge-board {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.challenge {
+  border: 1px dashed rgba(56, 189, 248, 0.35);
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  position: relative;
+}
+
+.challenge strong {
+  color: #e0f2fe;
+}
+
+.challenge .progress {
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.challenge .progress span {
+  display: block;
+  height: 100%;
+  background: linear-gradient(135deg, #38bdf8, #10b981);
+  width: 0;
+  transition: width 0.3s ease;
+}
+
+.challenge .status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(52, 211, 153, 0.12);
+  color: var(--success);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.rewards {
+  display: grid;
+  gap: 12px;
+}
+
+.reward-badge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px;
+  border-radius: 12px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(52, 211, 153, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.reward-badge::after {
+  content: '';
+  position: absolute;
+  inset: auto -20% -60% auto;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(248, 250, 252, 0.12), transparent 70%);
+  filter: blur(10px);
+}
+
+.reward-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #38bdf8, #10b981);
+  color: #0b1224;
+  font-weight: 800;
+  box-shadow: 0 10px 25px rgba(6, 182, 212, 0.25);
+}
+
+.spark, .pulse-dot {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #38bdf8, #c084fc);
+  box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35);
+  animation: pulseGlow 2.4s infinite;
+}
+
+.pulse-dot { background: linear-gradient(135deg, #34d399, #38bdf8); }
+
+.shine {
+  animation: shimmer 1.5s linear infinite;
+}
+
 .footer {
   text-align: center;
   color: var(--muted);
@@ -410,6 +574,12 @@ input:focus {
 @keyframes shimmer {
   0% { transform: translateX(-100%); }
   100% { transform: translateX(100%); }
+}
+
+@keyframes pulseGlow {
+  0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.35); }
+  70% { transform: scale(1); box-shadow: 0 0 0 12px rgba(56, 189, 248, 0); }
+  100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
 }
 
 @keyframes slideIn {
