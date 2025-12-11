@@ -3,10 +3,7 @@ FROM node:20-bullseye
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm config set registry https://registry.npmjs.org/ \
-  && npm config delete proxy \
-  && npm config delete https-proxy \
-  && npm install --no-audit --no-fund \
+RUN npm install \
   && npm cache clean --force
 
 COPY . .
