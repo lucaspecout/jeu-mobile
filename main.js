@@ -782,6 +782,7 @@ function initTabs() {
 }
 
 function init() {
+  requestAnimationFrame(() => document.body.classList.add('page-ready'));
   initTabs();
   selectors.loginForm.addEventListener('submit', handleLogin);
   selectors.registerForm.addEventListener('submit', handleRegister);

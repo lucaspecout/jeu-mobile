@@ -27,6 +27,31 @@ body {
   background-attachment: fixed;
 }
 
+.hero__content,
+.card,
+.stat,
+.panel,
+.footer,
+.tab {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+.page-ready .hero__content,
+.page-ready .card,
+.page-ready .stat,
+.page-ready .panel,
+.page-ready .footer,
+.page-ready .tab {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.page-ready .stat:nth-child(1) { transition-delay: 0.05s; }
+.page-ready .stat:nth-child(2) { transition-delay: 0.1s; }
+.page-ready .stat:nth-child(3) { transition-delay: 0.15s; }
+
 .hero {
   position: relative;
   padding: 64px 24px;
@@ -40,6 +65,7 @@ body {
   background: radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.08), transparent 35%),
     radial-gradient(circle at 80% 0%, rgba(56, 189, 248, 0.2), transparent 40%);
   filter: blur(40px);
+  pointer-events: none;
 }
 
 .hero__content {
