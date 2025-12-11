@@ -781,7 +781,26 @@ function initTabs() {
   });
 }
 
-function init() {
+function playIntro() {
+  const intro = document.getElementById('intro-screen');
+  if (!intro) return Promise.resolve();
+
+  document.body.classList.add('intro-active');
+
+  return new Promise(resolve => {
+    setTimeout(() => {
+      intro.classList.add('intro-screen--closing');
+      document.body.classList.remove('intro-active');
+      setTimeout(() => {
+        intro.remove();
+        resolve();
+      }, 650);
+    }, 1800);
+  });
+}
+
+async function init() {
+  await playIntro();
   requestAnimationFrame(() => document.body.classList.add('page-ready'));
   initTabs();
   selectors.loginForm.addEventListener('submit', handleLogin);

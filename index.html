@@ -10,6 +10,15 @@
   <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+  <div id="intro-screen" class="intro-screen">
+    <div class="intro-screen__glow"></div>
+    <div class="intro-screen__content">
+      <p class="intro-screen__eyebrow">Accès sécurisé</p>
+      <h1>Protec Rescue 385</h1>
+      <p class="intro-screen__tagline">Formation PSE immersive et réactive</p>
+    </div>
+  </div>
+
   <header class="hero">
     <div class="hero__overlay"></div>
     <div class="hero__content">
@@ -35,6 +44,15 @@
 
   <main class="layout">
     <section class="card auth" id="auth-section">
+      <div class="auth__header">
+        <div>
+          <p class="badge">Espace membre</p>
+          <h2>Connexion rapide & sécurisée</h2>
+          <p class="muted">Gérez votre progression et reprenez vos scénarios où que vous soyez.</p>
+        </div>
+        <div class="auth__hint">Accessible sur ordinateur, tablette et mobile.</div>
+      </div>
+
       <div class="tabs">
         <button class="tab active" data-target="login-panel">Connexion</button>
         <button class="tab" data-target="register-panel">Création de compte</button>
@@ -44,10 +62,10 @@
         <div class="tab-panel" id="login-panel">
           <form id="login-form" class="form">
             <label>Adresse e-mail
-              <input type="email" name="email" required>
+              <input type="email" name="email" autocomplete="email" placeholder="prenom.nom@email.fr" required>
             </label>
             <label>Mot de passe
-              <input type="password" name="password" required>
+              <input type="password" name="password" autocomplete="current-password" placeholder="********" required>
             </label>
             <button type="submit" class="btn primary">Connexion</button>
           </form>
@@ -56,13 +74,13 @@
         <div class="tab-panel hidden" id="register-panel">
           <form id="register-form" class="form">
             <label>Nom d'utilisateur
-              <input type="text" name="username" required>
+              <input type="text" name="username" autocomplete="username" placeholder="Votre pseudo" required>
             </label>
             <label>Adresse e-mail
-              <input type="email" name="email" required>
+              <input type="email" name="email" autocomplete="email" placeholder="prenom.nom@email.fr" required>
             </label>
             <label>Mot de passe
-              <input type="password" name="password" id="password-field" minlength="8" required>
+              <input type="password" name="password" id="password-field" autocomplete="new-password" minlength="8" placeholder="Au moins 8 caractères" required>
             </label>
             <div class="password-meter" id="password-strength">
               <span class="password-meter__bar"></span>
