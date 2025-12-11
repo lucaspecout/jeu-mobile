@@ -785,7 +785,29 @@ function playIntro() {
   const intro = document.getElementById('intro-screen');
   if (!intro) return Promise.resolve();
 
+  const timerValue = document.getElementById('intro-timer-value');
+  const meterBar = document.getElementById('intro-meter-bar');
+  const timeline = document.getElementById('intro-timeline');
+  const introDuration = 10_000;
+  let remaining = introDuration / 1000;
+
   document.body.classList.add('intro-active');
+  timerValue.textContent = remaining;
+
+  const interval = setInterval(() => {
+    remaining -= 1;
+    timerValue.textContent = Math.max(remaining, 0);
+    if (remaining <= 0) clearInterval(interval);
+  }, 1_000);
+
+  const start = performance.now();
+  const animate = now => {
+    const progress = Math.min((now - start) / introDuration, 1);
+    meterBar.style.width = `${progress * 100}%`;
+    timeline.style.transform = `scaleX(${progress})`;
+    if (progress < 1) requestAnimationFrame(animate);
+  };
+  requestAnimationFrame(animate);
 
   return new Promise(resolve => {
     setTimeout(() => {
@@ -795,7 +817,7 @@ function playIntro() {
         intro.remove();
         resolve();
       }, 650);
-    }, 1800);
+    }, introDuration);
   });
 }
 

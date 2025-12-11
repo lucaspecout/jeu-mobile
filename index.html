@@ -11,20 +11,41 @@
 </head>
 <body>
   <div id="intro-screen" class="intro-screen">
-    <div class="intro-screen__glow"></div>
+    <div class="intro-screen__aurora"></div>
+    <div class="intro-screen__matrix"></div>
+    <div class="intro-screen__sparkles"></div>
     <div class="intro-screen__content">
-      <p class="intro-screen__eyebrow">Accès sécurisé</p>
-      <h1>Protec Rescue 385</h1>
-      <p class="intro-screen__tagline">Formation PSE immersive et réactive</p>
+      <p class="intro-screen__eyebrow">Sécurisation immersive</p>
+      <h1>Activation du réseau de secours</h1>
+      <p class="intro-screen__tagline">Veille des protocoles, synchronisation des balises, calibration du poste avancé.</p>
+      <div class="intro-screen__status">
+        <div class="status-chip">Flux PSE</div>
+        <div class="status-chip status-chip--calm">Interface biométrique</div>
+        <div class="status-chip status-chip--pulse">Champ haptique</div>
+      </div>
+      <div class="intro-screen__timer">
+        <div class="timer-ring">
+          <span id="intro-timer-value">10</span>
+          <small>secondes</small>
+        </div>
+        <div class="timer-bars">
+          <span id="intro-meter-bar"></span>
+          <span class="timer-bars__glow"></span>
+        </div>
+      </div>
+      <div class="intro-screen__timeline">
+        <span></span><span></span><span></span><span></span><span></span>
+        <div id="intro-timeline" class="intro-screen__timeline-progress"></div>
+      </div>
     </div>
   </div>
 
   <header class="hero">
     <div class="hero__overlay"></div>
+    <div class="hero__particles"></div>
     <div class="hero__content">
-      <p class="badge">Programme PSE</p>
-      <h1>Protec Rescue 38</h1>
-      <p class="subtitle">Entraînez-vous aux gestes qui sauvent, conformément aux recommandations nationales PSE.</p>
+      <p class="badge">Portail immersif</p>
+      <p class="subtitle">Synchronisation des modules PSE : protection, examen, alerte et gestes adaptés.</p>
       <div class="stats">
         <div class="stat">
           <span class="stat__number" id="stat-users">0</span>
@@ -43,7 +64,12 @@
   </header>
 
   <main class="layout">
+    <div class="ambient-orbs">
+      <span></span><span></span><span></span><span></span>
+    </div>
+
     <section class="card auth" id="auth-section">
+      <div class="card__halo"></div>
       <div class="auth__header">
         <div>
           <p class="badge">Espace membre</p>
@@ -97,6 +123,7 @@
     </section>
 
     <section class="card dashboard hidden" id="dashboard">
+      <div class="card__halo"></div>
       <div class="dashboard__header">
         <div>
           <p class="badge">Espace secouriste</p>
