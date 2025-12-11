@@ -10,124 +10,134 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   </head>
   <body>
-    <div class="grid-bg" aria-hidden="true"></div>
-    <div class="scanline" aria-hidden="true"></div>
-    <header class="hero">
-      <div class="hero__content">
-        <p class="hero__eyebrow">Matrice PSE</p>
-        <h1>Protec Rescue 38</h1>
-        <p class="hero__tagline">Passage en mode serveur : authentification sécurisée, missions persistantes et menus façon cockpit.</p>
-        <div class="hero__badges">
-          <span class="chip">Flask + SQL</span>
-          <span class="chip">Animations néon</span>
-          <span class="chip">Menu dynamique</span>
-        </div>
+    <div id="splash" class="splash">
+      <div class="splash__glow"></div>
+      <div class="splash__content">
+        <p class="splash__eyebrow">Chargement du hub</p>
+        <div class="splash__title" id="splash-title">Protec Rescue 38</div>
+        <p class="splash__tagline">Synchronisation des modules avant ouverture du cockpit.</p>
       </div>
-      <div class="hero__hologram">
-        <div class="holo holo--ring"></div>
-        <div class="holo holo--orb"></div>
-        <div class="holo holo--grid"></div>
-        <div class="holo__labels">
-          <span>Centre d'alerte</span>
-          <span>Flux vital</span>
-          <span>Connectivité</span>
-        </div>
-      </div>
-    </header>
-
-    <main class="shell">
-      <section class="panel panel--frost">
-        <div class="panel__header">
-          <div>
-            <p class="eyebrow">Identité</p>
-            <h2>Espace secouriste</h2>
-            <p class="muted">Connexion persistante, base de données et session serveur.</p>
+    </div>
+    <div id="app-shell" class="app-shell hidden">
+      <div class="grid-bg" aria-hidden="true"></div>
+      <div class="scanline" aria-hidden="true"></div>
+      <header class="hero">
+        <div class="hero__content">
+          <p class="hero__eyebrow">Matrice PSE</p>
+          <h1>Protec Rescue 38</h1>
+          <p class="hero__tagline">Passage en mode serveur : authentification sécurisée, missions persistantes et menus façon cockpit.</p>
+          <div class="hero__badges">
+            <span class="chip">Flask + SQL</span>
+            <span class="chip">Animations néon</span>
+            <span class="chip">Menu dynamique</span>
           </div>
-          <button class="btn ghost" id="logout-btn">Déconnexion</button>
         </div>
-        <div class="auth-grid">
-          <div class="card card--glass">
-            <div class="tabs" role="tablist">
-              <button class="tab active" data-target="login">Connexion</button>
-              <button class="tab" data-target="register">Création</button>
+        <div class="hero__hologram">
+          <div class="holo holo--ring"></div>
+          <div class="holo holo--orb"></div>
+          <div class="holo holo--grid"></div>
+          <div class="holo__labels">
+            <span>Centre d'alerte</span>
+            <span>Flux vital</span>
+            <span>Connectivité</span>
+          </div>
+        </div>
+      </header>
+
+      <main class="shell">
+        <section class="panel panel--frost">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Identité</p>
+              <h2>Espace secouriste</h2>
+              <p class="muted">Connexion persistante, base de données et session serveur.</p>
             </div>
-            <form id="login-form" class="form" data-panel="login">
-              <label>E-mail
-                <input name="email" type="email" autocomplete="email" required>
-              </label>
-              <label>Mot de passe
-                <input name="password" type="password" autocomplete="current-password" required>
-              </label>
-              <button class="btn primary" type="submit">Entrer dans le hub</button>
-            </form>
-            <form id="register-form" class="form hidden" data-panel="register">
-              <label>Pseudo
-                <input name="username" type="text" autocomplete="username" required>
-              </label>
-              <label>E-mail
-                <input name="email" type="email" autocomplete="email" required>
-              </label>
-              <label>Mot de passe
-                <input name="password" type="password" autocomplete="new-password" minlength="8" required>
-              </label>
-              <button class="btn secondary" type="submit">Activer un profil</button>
-            </form>
-            <div class="alert hidden" id="auth-alert"></div>
+            <button class="btn ghost" id="logout-btn">Déconnexion</button>
           </div>
+          <div class="auth-grid">
+            <div class="card card--glass">
+              <div class="tabs" role="tablist">
+                <button class="tab active" data-target="login">Connexion</button>
+                <button class="tab" data-target="register">Création</button>
+              </div>
+              <form id="login-form" class="form" data-panel="login">
+                <label>E-mail
+                  <input name="email" type="email" autocomplete="email" required>
+                </label>
+                <label>Mot de passe
+                  <input name="password" type="password" autocomplete="current-password" required>
+                </label>
+                <button class="btn primary" type="submit">Entrer dans le hub</button>
+              </form>
+              <form id="register-form" class="form hidden" data-panel="register">
+                <label>Pseudo
+                  <input name="username" type="text" autocomplete="username" required>
+                </label>
+                <label>E-mail
+                  <input name="email" type="email" autocomplete="email" required>
+                </label>
+                <label>Mot de passe
+                  <input name="password" type="password" autocomplete="new-password" minlength="8" required>
+                </label>
+                <button class="btn secondary" type="submit">Activer un profil</button>
+              </form>
+              <div class="alert hidden" id="auth-alert"></div>
+            </div>
 
-          <div class="card card--glass status" id="status-card">
-            <p class="eyebrow">Statut réseau</p>
-            <h3 id="status-title">Non connecté</h3>
-            <p class="muted" id="status-sub">Rejoignez la salle de commande pour synchroniser vos missions.</p>
-            <div class="status__grid">
-              <div>
-                <p class="label">Utilisateur</p>
-                <p id="status-user">—</p>
-              </div>
-              <div>
-                <p class="label">Progrès</p>
-                <p id="status-progress">—</p>
-              </div>
-              <div>
-                <p class="label">Sessions actives</p>
-                <p class="pulse">Serveur prêt</p>
+            <div class="card card--glass status" id="status-card">
+              <p class="eyebrow">Statut réseau</p>
+              <h3 id="status-title">Non connecté</h3>
+              <p class="muted" id="status-sub">Rejoignez la salle de commande pour synchroniser vos missions.</p>
+              <div class="status__grid">
+                <div>
+                  <p class="label">Utilisateur</p>
+                  <p id="status-user">—</p>
+                </div>
+                <div>
+                  <p class="label">Progrès</p>
+                  <p id="status-progress">—</p>
+                </div>
+                <div>
+                  <p class="label">Sessions actives</p>
+                  <p class="pulse">Serveur prêt</p>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="panel">
-        <div class="panel__header">
-          <div>
-            <p class="eyebrow">Hangar des missions</p>
-            <h2>Menu principal</h2>
-            <p class="muted">Choisissez une mission PSE, consultez la difficulté et lancez la progression.</p>
+        <section class="panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Hangar des missions</p>
+              <h2>Menu principal</h2>
+              <p class="muted">Choisissez une mission PSE, consultez la difficulté et lancez la progression.</p>
+            </div>
+            <div class="panel__actions">
+              <span class="chip chip--pulse">Synchronisé base</span>
+            </div>
           </div>
-          <div class="panel__actions">
-            <span class="chip chip--pulse">Synchronisé base</span>
-          </div>
-        </div>
-        <div class="menu-grid" id="level-menu"></div>
-      </section>
+          <div class="menu-grid" id="level-menu"></div>
+        </section>
 
-      <section class="panel panel--frost">
-        <div class="panel__header">
-          <div>
-            <p class="eyebrow">Journal néon</p>
-            <h2>Centre d'animation</h2>
-            <p class="muted">Animations GSAP : flux d'énergie, barres lumineuses et transitions douces.</p>
+        <section class="panel panel--frost">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Journal néon</p>
+              <h2>Centre d'animation</h2>
+              <p class="muted">Animations GSAP : flux d'énergie, barres lumineuses et transitions douces.</p>
+            </div>
+            <button class="btn" id="simulate-btn">Simuler un succès</button>
           </div>
-          <button class="btn" id="simulate-btn">Simuler un succès</button>
-        </div>
-        <div class="horizon">
-          <div class="beam" id="beam"></div>
-          <div class="scanner" id="scanner"></div>
-          <div class="pulse-line" id="pulse-line"></div>
-          <div class="logs" id="log-panel"></div>
-        </div>
-      </section>
-    </main>
+          <div class="horizon">
+            <div class="beam" id="beam"></div>
+            <div class="scanner" id="scanner"></div>
+            <div class="pulse-line" id="pulse-line"></div>
+            <div class="logs" id="log-panel"></div>
+          </div>
+        </section>
+      </main>
+    </div>
 
     <script>const LEVELS = {{ levels|tojson }};</script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
