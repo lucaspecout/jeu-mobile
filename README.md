@@ -64,4 +64,4 @@ Expo démarre alors en mode web sur le port 19006 par défaut.
 
 ## Remarques
 - Les assets (icône, splash, favicon) sont générés à partir de chaînes Base64 pour éviter de commiter des binaires. Remplacez-les par vos propres images en écrasant les fichiers dans `assets/` après l'exécution de `npm run generate:assets`.
-- Si votre environnement réseau bloque l'installation des dépendances via `npm install`, réessayez depuis une machine ayant accès au registre npm ou configurez un miroir interne.
+- Si votre environnement réseau bloque l'installation des dépendances via `npm install`, réessayez depuis une machine ayant accès au registre npm ou configurez un miroir interne. L'image Docker force l'usage du registre public npmjs.org et supprime les proxys hérités pour éviter les erreurs 403 pendant le build.
