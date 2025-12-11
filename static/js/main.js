@@ -147,31 +147,15 @@ async function init() {
 
 function playSplashThenInit() {
   const splash = qs('#splash');
-  const title = qs('#splash-title');
   const appShell = qs('#app-shell');
 
-  if (localStorage.getItem('isAuthenticated') === 'true') {
-    splash?.classList.add('hidden');
-    appShell?.classList.remove('hidden');
-    init();
-    return;
-  }
-
-  if (!splash || !title || !appShell) {
-    init();
-    return;
-  }
-
-  const tl = gsap.timeline();
-  tl.fromTo(title, { scale: 0.7, opacity: 0 }, { scale: 1.1, opacity: 1, duration: 2.5, ease: 'expo.out' });
-  tl.to(title, { scale: 1.35, duration: 2.5, ease: 'power2.inOut' }, 0);
-  tl.fromTo('.splash__tagline', { opacity: 0 }, { opacity: 1, duration: 1.4, ease: 'sine.out' }, 0.6);
-
-  setTimeout(() => {
-    splash.classList.add('hidden');
-    appShell.classList.remove('hidden');
-    init();
-  }, 5000);
+  // L'écran principal n'est accessible qu'une fois connecté :
+  // on supprime donc l'animation et on force l'état authentifié
+  // pour les prochains chargements.
+  localStorage.setItem('isAuthenticated', 'true');
+  splash?.classList.add('hidden');
+  appShell?.classList.remove('hidden');
+  init();
 }
 
 document.addEventListener('DOMContentLoaded', playSplashThenInit);
