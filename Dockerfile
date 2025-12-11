@@ -1,9 +1,12 @@
-FROM nginx:alpine
+FROM python:3.12-slim
 
-WORKDIR /usr/share/nginx/html
-COPY index.html ./
-COPY styles.css ./
-COPY main.js ./
+WORKDIR /app
+COPY requirements.txt ./
+RUN pip install --no-cache-dir -r requirements.txt
 
-EXPOSE 80
-CMD ["nginx", "-g", "daemon off;"]
+COPY . .
+ENV FLASK_APP=app.py
+ENV PORT=8000
+EXPOSE 8000
+
+CMD ["flask", "run", "--host", "0.0.0.0", "--port", "8000"]

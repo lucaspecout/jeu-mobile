@@ -1,29 +1,38 @@
-# Protec Rescue 38
+# Protec Rescue 38 — Edition Flask
 
-Prototype de jeu web en français basé sur le référentiel PSE (Premiers Secours en Équipe). Il s'agit d'une application 100% front-end : tout est stocké dans le navigateur pour permettre la création de compte, la connexion et la progression par niveaux.
+Refonte du prototype en véritable application serveur : Flask + base SQL, menus façon jeu et interface néon animée.
 
-## Lancer le jeu
-1. Ouvrez `index.html` dans votre navigateur (double clic ou via un petit serveur local : `python -m http.server 8000`).
-2. Créez un compte ou connectez-vous.
-3. Choisissez un module PSE et lancez la simulation.
+## Lancer en local
+1. Créez un environnement virtuel et installez les dépendances :
+   ```bash
+   pip install -r requirements.txt
+   ```
+2. Démarrez le serveur :
+   ```bash
+   flask --app app run --host 0.0.0.0 --port 8000
+   ```
+3. Ouvrez `http://localhost:8000` et créez un compte. Les données sont persistées via SQLite par défaut (ou via `DATABASE_URL`).
 
-## Exécuter avec Docker
-1. Construisez l'image : `docker build -t protec-rescue-38 .`.
-2. Lancez le conteneur : `docker run -p 8080:80 protec-rescue-38`.
-3. Ouvrez le jeu sur `http://localhost:8080`.
+## Docker
+1. Construisez l'image :
+   ```bash
+   docker build -t protec-rescue-flask .
+   ```
+2. Lancez-la :
+   ```bash
+   docker run -p 8033:8000 protec-rescue-flask
+   ```
+3. Accédez à `http://localhost:8033`.
 
-### Via Docker Compose
-1. Démarrez le service : `docker compose up --build`.
-2. Ouvrez le jeu sur `http://localhost:8080`.
-3. Un PostgreSQL est lancé pour préparer une persistance serveur (`DATABASE_URL` injectée côté app), même si le prototype reste 100% front-end pour le moment.
+### Avec Docker Compose + Postgres
+```bash
+docker compose up --build
+```
+- L'application écoute sur `http://localhost:8033`.
+- La variable `DATABASE_URL` est injectée (format `postgres://` accepté et converti automatiquement).
 
-## Fonctionnalités clés
-- **Création de compte / connexion** : stockage local avec persistance de la progression.
-- **Quizz éclair & défis** : questions rapides, objectifs quotidiens et récompenses animées pour dynamiser l'entraînement.
-- **Niveaux PSE** : évaluation initiale, bilan vital, gestes de secours avec scénarios et explications.
-- **Statuts** : Non commencé, En cours, Réussi avec score cumulatif.
-- **Tableau d'honneur** : top 5 des secouristes selon les points accumulés.
-
-## Notes
-- Aucune dépendance externe à installer.
-- Vous pouvez réinitialiser votre progression en vidant le stockage local du navigateur (localStorage).
+## Fonctionnalités
+- Authentification / inscription côté serveur avec hash des mots de passe.
+- Menus de mission dynamiques, difficultés et progression en base.
+- Animations GSAP (scanner, lignes de flux) et interface futuriste.
+- API JSON pour le menu, le profil et la progression.
