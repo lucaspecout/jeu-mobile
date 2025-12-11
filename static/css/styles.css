@@ -22,6 +22,32 @@ body {
   overflow-x: hidden;
 }
 
+.app-shell { position: relative; min-height: 100vh; }
+
+.splash {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(circle at 50% 50%, rgba(58, 242, 255, 0.18), rgba(5, 6, 11, 0.96));
+  display: grid;
+  place-items: center;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.splash__glow {
+  position: absolute;
+  width: 480px;
+  height: 480px;
+  background: radial-gradient(circle, rgba(58, 242, 255, 0.5), rgba(255, 63, 171, 0));
+  filter: blur(40px);
+  animation: pulse 4s ease-in-out infinite;
+}
+
+.splash__content { position: relative; text-align: center; display: grid; gap: 10px; }
+.splash__eyebrow { letter-spacing: 0.24em; text-transform: uppercase; color: var(--accent); font-weight: 700; }
+.splash__title { font-size: clamp(42px, 6vw + 10px, 88px); font-weight: 700; letter-spacing: -0.02em; text-shadow: var(--glow); }
+.splash__tagline { color: var(--muted); }
+
 .grid-bg {
   position: fixed;
   inset: 0;
