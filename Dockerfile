@@ -3,8 +3,7 @@ FROM node:20-bullseye
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install -g npm@latest \
-  && npm install \
+RUN npm install \
   && npm cache clean --force
 
 COPY . .
