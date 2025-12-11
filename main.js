@@ -63,6 +63,84 @@ const levels = [
   }
 ];
 
+const quickQuizzes = [
+  {
+    id: 'reflex-securite',
+    title: 'Réflexe sécurité',
+    difficulty: 'Rapide',
+    duration: '45s',
+    question: 'Avant de toucher la victime, quelle vérification rapide éviterait un sur-accident ?',
+    options: [
+      'Repérer les dangers électriques, circulation et produits dangereux',
+      'Vérifier le pouls radial immédiatement',
+      'Mettre la victime assise pour parler',
+      'Chercher l’identité sur les papiers',
+    ],
+    answer: 0,
+    reward: { points: 60, badge: 'Éclaireur' },
+    rationale: 'La protection de la zone est prioritaire : se protéger et sécuriser l’environnement.',
+  },
+  {
+    id: 'alerte-efficace',
+    title: "Alerte efficace",
+    difficulty: 'Intermédiaire',
+    duration: '1 min',
+    question: "Que doit absolument contenir votre message d'alerte au 15/112 ?",
+    options: [
+      'Nom, localisation précise, nombre de victimes, état et gestes commencés',
+      'Seulement le nombre de victimes',
+      'Le modèle du véhicule impliqué',
+      'Les coordonnées GPS approximatives uniquement',
+    ],
+    answer: 0,
+    reward: { points: 80, badge: 'Voix calme' },
+    rationale: 'Un message structuré permet un envoi de moyens adaptés et un guidage sécurisé.',
+  },
+  {
+    id: 'gestes-vital',
+    title: 'Gestes vitaux',
+    difficulty: 'Difficile',
+    duration: '90s',
+    question: 'Sur un arrêt cardiaque, quelle séquence garantit la meilleure survie ?',
+    options: [
+      'Appel 112/15, DAE dès que possible, 30 compressions / 2 insufflations',
+      'Recherche du pouls pendant 30 secondes',
+      'Ventilation seule jusqu’à reprise respiratoire',
+      'Transporter la victime vers un endroit calme',
+    ],
+    answer: 0,
+    reward: { points: 120, badge: 'Réflexe DAE' },
+    rationale: 'La chaîne survie PSE : alerte, massage 30/2, défibrillation précoce.',
+  },
+];
+
+const challengeBoard = [
+  {
+    id: 'double-validation',
+    title: 'Validation double',
+    description: 'Réussir 2 modules PSE au moins.',
+    threshold: 2,
+    reward: { points: 150, badge: 'Régularité' },
+    progress: user => Object.values(user.progress || {}).filter(p => p.status === 'Réussi').length,
+  },
+  {
+    id: 'quizz-du-jour',
+    title: 'Quizz du jour',
+    description: 'Répondre correctement à un quizz éclair.',
+    threshold: 1,
+    reward: { points: 90, badge: 'Instinct' },
+    progress: user => user.challengeHistory?.quizzCorrect || 0,
+  },
+  {
+    id: 'score-elite',
+    title: 'Score élite',
+    description: 'Cumuler 250 points ou plus.',
+    threshold: 250,
+    reward: { points: 200, badge: 'Expert PSE' },
+    progress: user => Object.values(user.progress || {}).reduce((acc, l) => acc + l.score, 0),
+  },
+];
+
 const selectors = {
   authSection: document.getElementById('auth-section'),
   dashboard: document.getElementById('dashboard'),
@@ -76,6 +154,9 @@ const selectors = {
   userStatus: document.getElementById('user-status'),
   statUsers: document.getElementById('stat-users'),
   statSuccess: document.getElementById('stat-success'),
+  quizArea: document.getElementById('quiz-area'),
+  challengeBoard: document.getElementById('challenge-board'),
+  rewardBoard: document.getElementById('reward-board'),
   authAlert: document.getElementById('auth-alert'),
   passwordField: document.getElementById('password-field'),
   passwordMeter: document.getElementById('password-strength'),
@@ -98,14 +179,29 @@ function createSalt() {
 
 async function deriveKey(password, salt, iterations = SECURITY.iterations) {
   const encoder = new TextEncoder();
+  if (!crypto?.subtle) {
+    return encoder.encode(password + encodeBase64(salt));
+  }
+
   const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(password), 'PBKDF2', false, ['deriveBits']);
   const derivedBits = await crypto.subtle.deriveBits({ name: 'PBKDF2', salt, iterations, hash: 'SHA-256' }, keyMaterial, 256);
   return new Uint8Array(derivedBits);
 }
 
 async function hashPassword(password, salt, iterations = SECURITY.iterations) {
-  const derived = await deriveKey(password, salt, iterations);
-  return encodeBase64(derived);
+  try {
+    const derived = await deriveKey(password, salt, iterations);
+    return encodeBase64(derived);
+  } catch (error) {
+    console.warn('Fallback hash utilisé (contexte non sécurisé).', error);
+    const encoder = new TextEncoder();
+    const payload = encoder.encode(`${password}-${encodeBase64(salt)}`);
+    if (crypto?.subtle?.digest) {
+      const digest = await crypto.subtle.digest('SHA-256', payload);
+      return encodeBase64(new Uint8Array(digest));
+    }
+    return encodeBase64(payload);
+  }
 }
 
 function loadUsers() {
@@ -133,7 +229,8 @@ function currentUser() {
   const session = currentSession();
   if (!session) return null;
   const users = loadUsers();
-  return users.find(u => u.email === session.email) || null;
+  const user = users.find(u => u.email === session.email) || null;
+  return user ? ensureUserDefaults(user) : null;
 }
 
 function loadLocks() {
@@ -142,6 +239,17 @@ function loadLocks() {
 
 function saveLocks(locks) {
   localStorage.setItem('protec-rescue-38-locks', JSON.stringify(locks));
+}
+
+function ensureUserDefaults(user) {
+  return {
+    badges: [],
+    challengeHistory: { quizzCorrect: 0, lastQuizDay: null, lastRewarded: {} },
+    rewards: { chests: 0 },
+    ...user,
+    progress: user.progress || {},
+    points: user.points || 0,
+  };
 }
 
 function showAlert(message, type = 'info') {
@@ -238,17 +346,21 @@ async function verifyPassword(password, user, users) {
 }
 
 function showDashboard(user) {
+  const hydrated = ensureUserDefaults(user);
   selectors.authSection.classList.add('hidden');
   selectors.dashboard.classList.remove('hidden');
-  selectors.userGreeting.textContent = `Bonjour ${user.username}`;
+  selectors.userGreeting.textContent = `Bonjour ${hydrated.username}`;
 
-  const completed = Object.values(user.progress || {}).filter(p => p.status === 'Réussi').length;
+  const completed = Object.values(hydrated.progress || {}).filter(p => p.status === 'Réussi').length;
   selectors.userStatus.textContent = completed === levels.length
     ? 'Parcours validé ! Continuez à réviser les scénarios.'
     : `Modules validés : ${completed}/${levels.length}`;
 
-  renderLevels(user);
-  renderScenario(user);
+  renderLevels(hydrated);
+  renderScenario(hydrated);
+  renderQuickQuiz(hydrated);
+  renderChallenges(hydrated);
+  renderRewards(hydrated);
   renderLeaderboard();
   updateHeroStats();
 }
@@ -280,15 +392,13 @@ async function handleRegister(event) {
   const salt = createSalt();
   const passwordHash = await hashPassword(password, salt);
 
-  const newUser = {
+  const newUser = ensureUserDefaults({
     username,
     email,
     passwordHash,
     salt: encodeBase64(salt),
     iterations: SECURITY.iterations,
-    progress: {},
-    points: 0,
-  };
+  });
 
   users.push(newUser);
   saveUsers(users);
@@ -311,7 +421,8 @@ async function handleLogin(event) {
   }
 
   const users = loadUsers();
-  const user = users.find(u => u.email === email);
+  const userIndex = users.findIndex(u => u.email === email);
+  const user = userIndex >= 0 ? ensureUserDefaults(users[userIndex]) : null;
   if (!user) {
     recordFailedLogin(email);
     showAlert('Identifiants invalides.', 'error');
@@ -332,6 +443,8 @@ async function handleLogin(event) {
   setSession(email);
   selectors.loginForm.reset();
   showAlert('Connexion sécurisée réussie.', 'success');
+  users[userIndex] = user;
+  saveUsers(users);
   showDashboard(user);
 }
 
@@ -409,10 +522,192 @@ function renderScenario(user) {
   selectors.scenarioArea.appendChild(scenario);
 }
 
+function selectQuiz() {
+  const index = Math.floor(Math.random() * quickQuizzes.length);
+  return quickQuizzes[index];
+}
+
+function renderQuickQuiz(user) {
+  if (!selectors.quizArea) return;
+  const quiz = selectQuiz();
+  selectors.quizArea.innerHTML = '';
+
+  const card = document.createElement('div');
+  card.className = 'quiz-card';
+  card.innerHTML = `
+    <div class="quiz-meta">
+      <span class="badge">Quizz éclair</span>
+      <span>⏱ ${quiz.duration}</span>
+      <span>⚡ ${quiz.difficulty}</span>
+    </div>
+    <h4>${quiz.title}</h4>
+    <p class="muted">${quiz.question}</p>
+  `;
+
+  const options = document.createElement('div');
+  options.className = 'options';
+  quiz.options.forEach((option, index) => {
+    const btn = document.createElement('button');
+    btn.className = 'option';
+    btn.type = 'button';
+    btn.textContent = option;
+    btn.addEventListener('click', () => evaluateQuickQuiz(quiz, user, index));
+    options.appendChild(btn);
+  });
+
+  const rewardLine = document.createElement('p');
+  rewardLine.className = 'muted';
+  rewardLine.textContent = `Récompense : ${quiz.reward.points} pts ${quiz.reward.badge ? `• Badge ${quiz.reward.badge}` : ''}`;
+
+  card.appendChild(options);
+  card.appendChild(rewardLine);
+  selectors.quizArea.appendChild(card);
+}
+
+function evaluateQuickQuiz(quiz, user, selectedIndex) {
+  const isCorrect = selectedIndex === quiz.answer;
+  const users = loadUsers();
+  const storedUser = ensureUserDefaults(users.find(u => u.email === user.email));
+
+  if (!storedUser.challengeHistory) {
+    storedUser.challengeHistory = { quizzCorrect: 0, lastQuizDay: null, lastRewarded: {} };
+  }
+
+  if (isCorrect) {
+    const today = new Date().toDateString();
+    if (storedUser.challengeHistory.lastQuizDay !== today) {
+      storedUser.challengeHistory.quizzCorrect += 1;
+      storedUser.challengeHistory.lastQuizDay = today;
+    }
+    const rewarded = awardReward(storedUser, quiz.reward, 'Réponse parfaite !');
+    renderDashboardState(rewarded);
+    return;
+  }
+
+  showAlert('Réponse incorrecte, respirez et retentez.', 'error');
+  persistUser(storedUser);
+  renderQuickQuiz(storedUser);
+}
+
+function persistUser(updatedUser) {
+  const users = loadUsers();
+  const index = users.findIndex(u => u.email === updatedUser.email);
+  if (index >= 0) {
+    users[index] = updatedUser;
+    saveUsers(users);
+  }
+  return updatedUser;
+}
+
+function awardReward(user, reward, reason) {
+  const updated = ensureUserDefaults(user);
+  updated.points = (updated.points || 0) + (reward.points || 0);
+  if (reward.badge && !updated.badges.includes(reward.badge)) {
+    updated.badges.push(reward.badge);
+  }
+  updated.rewards.chests = (updated.rewards?.chests || 0) + 1;
+  persistUser(updated);
+  showAlert(`${reason} ${reward.points ? `+${reward.points} pts` : ''}${reward.badge ? ` • Badge ${reward.badge}` : ''}`, 'success');
+  return updated;
+}
+
+function renderDashboardState(user) {
+  renderLevels(user);
+  renderScenario(user);
+  renderQuickQuiz(user);
+  renderChallenges(user);
+  renderRewards(user);
+  renderLeaderboard();
+  updateHeroStats();
+}
+
+function renderChallenges(user) {
+  if (!selectors.challengeBoard) return;
+  const hydrated = ensureUserDefaults(user);
+  selectors.challengeBoard.innerHTML = '';
+
+  challengeBoard.forEach(challenge => {
+    const value = challenge.progress(hydrated);
+    const isDone = value >= challenge.threshold;
+    const alreadyRewarded = hydrated.challengeHistory?.lastRewarded?.[challenge.id] === new Date().toDateString();
+
+    const card = document.createElement('div');
+    card.className = 'challenge';
+    card.innerHTML = `
+      <strong>${challenge.title}</strong>
+      <p class="muted">${challenge.description}</p>
+      <div class="progress"><span style="width:${Math.min(100, (value / challenge.threshold) * 100)}%"></span></div>
+      <p class="muted">${value}/${challenge.threshold}</p>
+    `;
+
+    if (isDone && !alreadyRewarded) {
+      const button = document.createElement('button');
+      button.className = 'btn secondary';
+      button.textContent = 'Réclamer la récompense';
+      button.addEventListener('click', () => claimChallengeReward(challenge, hydrated));
+      card.appendChild(button);
+    } else {
+      const status = document.createElement('span');
+      status.className = 'status-chip';
+      status.textContent = isDone ? 'Objectif atteint' : 'En cours';
+      card.appendChild(status);
+    }
+
+    selectors.challengeBoard.appendChild(card);
+  });
+}
+
+function claimChallengeReward(challenge, user) {
+  const hydrated = ensureUserDefaults(user);
+  hydrated.challengeHistory.lastRewarded = hydrated.challengeHistory.lastRewarded || {};
+  hydrated.challengeHistory.lastRewarded[challenge.id] = new Date().toDateString();
+  const rewarded = awardReward(hydrated, challenge.reward, challenge.title);
+  persistUser(rewarded);
+  renderDashboardState(rewarded);
+}
+
+function renderRewards(user) {
+  if (!selectors.rewardBoard) return;
+  const hydrated = ensureUserDefaults(user);
+  selectors.rewardBoard.innerHTML = '';
+
+  const chest = document.createElement('div');
+  chest.className = 'reward-badge';
+  chest.innerHTML = `
+    <div class="reward-icon">🎁</div>
+    <div>
+      <strong>Coffres gagnés</strong>
+      <p class="muted">${hydrated.rewards?.chests || 0} coffres virtuels à ouvrir en session.</p>
+    </div>
+  `;
+  selectors.rewardBoard.appendChild(chest);
+
+  if (!hydrated.badges || hydrated.badges.length === 0) {
+    const empty = document.createElement('p');
+    empty.className = 'muted';
+    empty.textContent = 'Aucun badge pour le moment. Répondez aux quizz et validez des modules !';
+    selectors.rewardBoard.appendChild(empty);
+    return;
+  }
+
+  hydrated.badges.forEach((badge, index) => {
+    const item = document.createElement('div');
+    item.className = 'reward-badge';
+    item.innerHTML = `
+      <div class="reward-icon">${index + 1}</div>
+      <div>
+        <strong>${badge}</strong>
+        <p class="muted">Badge obtenu grâce à vos réflexes PSE.</p>
+      </div>
+    `;
+    selectors.rewardBoard.appendChild(item);
+  });
+}
+
 function evaluateAnswer(level, user, selectedIndex) {
   const isCorrect = selectedIndex === level.scenario.answer;
   const users = loadUsers();
-  const storedUser = users.find(u => u.email === user.email);
+  const storedUser = ensureUserDefaults(users.find(u => u.email === user.email));
   storedUser.progress = storedUser.progress || {};
 
   const previous = storedUser.progress[level.id] || { status: 'Non commencé', score: 0 };
@@ -420,6 +715,8 @@ function evaluateAnswer(level, user, selectedIndex) {
   const status = isCorrect ? 'Réussi' : 'En cours';
   storedUser.progress[level.id] = { status, score: baseScore };
   storedUser.points = Object.values(storedUser.progress).reduce((acc, l) => acc + l.score, 0);
+  const index = users.findIndex(u => u.email === user.email);
+  users[index] = storedUser;
   saveUsers(users);
 
   const feedback = document.createElement('div');
@@ -441,10 +738,12 @@ function evaluateAnswer(level, user, selectedIndex) {
 
 function startScenario(level, user) {
   const users = loadUsers();
-  const storedUser = users.find(u => u.email === user.email);
+  const storedUser = ensureUserDefaults(users.find(u => u.email === user.email));
   storedUser.progress = storedUser.progress || {};
   if (!storedUser.progress[level.id]) {
     storedUser.progress[level.id] = { status: 'En cours', score: 20 };
+    const index = users.findIndex(u => u.email === user.email);
+    users[index] = storedUser;
     saveUsers(users);
   }
   showDashboard(storedUser);

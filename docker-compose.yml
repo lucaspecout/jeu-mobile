@@ -6,3 +6,22 @@ services:
     ports:
       - "8033:80"
     restart: unless-stopped
+    environment:
+      - DATABASE_URL=postgres://protec:protec@db:5432/protec_rescue
+    depends_on:
+      - db
+
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=protec
+      - POSTGRES_PASSWORD=protec
+      - POSTGRES_DB=protec_rescue
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
