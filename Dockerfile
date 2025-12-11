@@ -10,8 +10,9 @@ ENV HTTP_PROXY="" \
     HTTPS_PROXY="" \
     http_proxy="" \
     https_proxy="" \
-    npm_config_http-proxy="" \
-    npm_config_https-proxy=""
+    npm_config_proxy="" \
+    npm_config_http_proxy="" \
+    npm_config_https_proxy=""
 
 RUN npm install \
   && npm cache clean --force
