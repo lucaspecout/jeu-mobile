@@ -26,6 +26,15 @@ Ce dépôt contient un mini-jeu React Native prêt à être lancé avec Expo Go 
    - Si vous voulez cibler une adresse précise, vous pouvez ajouter `--host 0.0.0.0`.
 
 ## Exécution dans Docker
+### Avec Docker Compose (recommandé)
+1. Construisez l'image et lancez le conteneur Expo :
+   ```bash
+   docker compose up --build
+   ```
+   Le service expose automatiquement les ports Expo (`19000-19002`) ainsi que le packager Metro (`8081`).
+2. Depuis les logs du conteneur, scannez le QR code avec Expo Go pour charger l'application sur votre mobile.
+
+### Via Docker directement
 1. Construisez l'image :
    ```bash
    docker build -t mobile-game .
@@ -55,4 +64,4 @@ Expo démarre alors en mode web sur le port 19006 par défaut.
 
 ## Remarques
 - Les assets (icône, splash, favicon) sont générés à partir de chaînes Base64 pour éviter de commiter des binaires. Remplacez-les par vos propres images en écrasant les fichiers dans `assets/` après l'exécution de `npm run generate:assets`.
-- Si votre environnement réseau bloque l'installation des dépendances via `npm install`, réessayez depuis une machine ayant accès au registre npm ou configurez un miroir interne.
+- Si votre environnement réseau bloque l'installation des dépendances via `npm install`, réessayez depuis une machine ayant accès au registre npm ou configurez un miroir interne. L'image Docker force l'usage du registre public npmjs.org et supprime les proxys hérités pour éviter les erreurs 403 pendant le build.
