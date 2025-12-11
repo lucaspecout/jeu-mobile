@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Protec Rescue 38 - Formation PSE</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <header class="hero">
+    <div class="hero__overlay"></div>
+    <div class="hero__content">
+      <p class="badge">Programme PSE</p>
+      <h1>Protec Rescue 38</h1>
+      <p class="subtitle">Entraînez-vous aux gestes qui sauvent, conformément aux recommandations nationales PSE.</p>
+      <div class="stats">
+        <div class="stat">
+          <span class="stat__number" id="stat-users">0</span>
+          <span class="stat__label">secouristes inscrits</span>
+        </div>
+        <div class="stat">
+          <span class="stat__number" id="stat-levels">3</span>
+          <span class="stat__label">modules pratiques</span>
+        </div>
+        <div class="stat">
+          <span class="stat__number" id="stat-success">0</span>
+          <span class="stat__label">réussites</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card auth" id="auth-section">
+      <div class="tabs">
+        <button class="tab active" data-target="login-panel">Connexion</button>
+        <button class="tab" data-target="register-panel">Création de compte</button>
+      </div>
+
+      <div class="tab-panels">
+        <div class="tab-panel" id="login-panel">
+          <form id="login-form" class="form">
+            <label>Adresse e-mail
+              <input type="email" name="email" required>
+            </label>
+            <label>Mot de passe
+              <input type="password" name="password" required>
+            </label>
+            <button type="submit" class="btn primary">Connexion</button>
+          </form>
+        </div>
+
+        <div class="tab-panel hidden" id="register-panel">
+          <form id="register-form" class="form">
+            <label>Nom d'utilisateur
+              <input type="text" name="username" required>
+            </label>
+            <label>Adresse e-mail
+              <input type="email" name="email" required>
+            </label>
+            <label>Mot de passe
+              <input type="password" name="password" minlength="6" required>
+            </label>
+            <button type="submit" class="btn secondary">Créer un compte</button>
+          </form>
+        </div>
+      </div>
+      <p class="helper">Les comptes sont enregistrés localement pour vous permettre de continuer votre progression.</p>
+    </section>
+
+    <section class="card dashboard hidden" id="dashboard">
+      <div class="dashboard__header">
+        <div>
+          <p class="badge">Espace secouriste</p>
+          <h2 id="user-greeting">Bonjour</h2>
+          <p id="user-status" class="muted"></p>
+        </div>
+        <div class="dashboard__actions">
+          <button class="btn" id="logout-btn">Déconnexion</button>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="panel">
+          <h3>Parcours PSE</h3>
+          <p class="muted">Chaque module reprend les étapes clés : protection, examen, alerte et gestes adaptés.</p>
+          <div id="levels"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Sessions de simulation</h3>
+          <p class="muted">Répondez aux scénarios rapides pour valider vos réflexes.</p>
+          <div id="scenario-area"></div>
+        </div>
+
+        <div class="panel">
+          <h3>Tableau d'honneur</h3>
+          <ul id="leaderboard" class="leaderboard"></ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <p>Protec Rescue 38 — entraînement immersif basé sur les recommandations PSE. Pensez toujours à votre sécurité et à celle de la victime avant d'agir.</p>
+  </footer>
+
+  <script src="main.js"></script>
+</body>
+</html>
