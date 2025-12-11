@@ -49,45 +49,16 @@
           <div class="panel__header">
             <div>
               <p class="eyebrow">Identité</p>
-              <h2>Espace secouriste</h2>
-              <p class="muted">Connexion persistante, base de données et session serveur.</p>
+              <h2>Profil connecté</h2>
+              <p class="muted">Votre session est active. Le cockpit des missions reste séparé de l'écran d'authentification.</p>
             </div>
             <button class="btn ghost" id="logout-btn">Déconnexion</button>
           </div>
           <div class="auth-grid">
-            <div class="card card--glass">
-              <div class="tabs" role="tablist">
-                <button class="tab active" data-target="login">Connexion</button>
-                <button class="tab" data-target="register">Création</button>
-              </div>
-              <form id="login-form" class="form" data-panel="login">
-                <label>E-mail
-                  <input name="email" type="email" autocomplete="email" required>
-                </label>
-                <label>Mot de passe
-                  <input name="password" type="password" autocomplete="current-password" required>
-                </label>
-                <button class="btn primary" type="submit">Entrer dans le hub</button>
-              </form>
-              <form id="register-form" class="form hidden" data-panel="register">
-                <label>Pseudo
-                  <input name="username" type="text" autocomplete="username" required>
-                </label>
-                <label>E-mail
-                  <input name="email" type="email" autocomplete="email" required>
-                </label>
-                <label>Mot de passe
-                  <input name="password" type="password" autocomplete="new-password" minlength="8" required>
-                </label>
-                <button class="btn secondary" type="submit">Activer un profil</button>
-              </form>
-              <div class="alert hidden" id="auth-alert"></div>
-            </div>
-
             <div class="card card--glass status" id="status-card">
               <p class="eyebrow">Statut réseau</p>
-              <h3 id="status-title">Non connecté</h3>
-              <p class="muted" id="status-sub">Rejoignez la salle de commande pour synchroniser vos missions.</p>
+              <h3 id="status-title">En cours de synchronisation</h3>
+              <p class="muted" id="status-sub">Chargement des données utilisateur et des missions.</p>
               <div class="status__grid">
                 <div>
                   <p class="label">Utilisateur</p>
@@ -102,6 +73,14 @@
                   <p class="pulse">Serveur prêt</p>
                 </div>
               </div>
+              <div class="alert hidden" id="app-alert"></div>
+            </div>
+
+            <div class="card card--glass">
+              <p class="eyebrow">Navigation</p>
+              <h3>Authentification isolée</h3>
+              <p class="muted">L'écran de connexion / création de compte est désormais séparé. Utilisez le raccourci ci-dessous si vous devez changer d'utilisateur.</p>
+              <a class="btn secondary" href="/auth">Aller à la page de connexion</a>
             </div>
           </div>
         </section>
