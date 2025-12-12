@@ -293,6 +293,25 @@ body {
 .menu-card .launch { margin-top: 12px; }
 .menu-card::after { content: ""; position: absolute; inset: -40% auto auto -40%; width: 120px; height: 120px; background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 60%); transform: rotate(25deg); opacity: 0.6; }
 .menu-card:hover { box-shadow: var(--glow); transform: translateY(-2px); transition: 0.2s ease; }
+.menu-card.mission-reflexe { background: linear-gradient(135deg, rgba(74, 222, 255, 0.08), rgba(255, 96, 175, 0.12)); border-color: rgba(255,255,255,0.08); box-shadow: 0 0 0 1px rgba(255,255,255,0.03); }
+.menu-card.mission-reflexe::before { content: ""; position: absolute; inset: -40% auto auto 10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(55,225,255,0.22), transparent 60%); filter: blur(10px); animation: orbit 6s linear infinite; }
+.menu-card.mission-reflexe::after { inset: auto -35% -35% auto; width: 140px; height: 140px; background: radial-gradient(circle, rgba(255,111,181,0.22), transparent 65%); animation: pulseGlow 3s ease-in-out infinite; }
+.menu-card.mission-reflexe .icon { font-size: 26px; filter: drop-shadow(0 0 8px rgba(255,255,255,0.4)); }
+.menu-card.mission-reflexe .desc { color: #e1f8ff; }
+.menu-card.mission-reflexe .difficulty { color: #7ee0ff; letter-spacing: 0.06em; }
+.menu-card.mission-reflexe .launch .chip { background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); }
+.menu-card.mission-reflexe .launch .btn { box-shadow: 0 0 16px rgba(126,224,255,0.2); }
+
+@keyframes orbit {
+  0% { transform: rotate(0deg) translateX(12px) rotate(0deg); opacity: 0.5; }
+  50% { opacity: 0.8; }
+  100% { transform: rotate(360deg) translateX(12px) rotate(-360deg); opacity: 0.5; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50% { opacity: 0.9; transform: scale(1.05); }
+}
 
 .profile-drawer { position: fixed; right: 0; top: 0; bottom: 0; width: min(420px, 90vw); background: rgba(10, 8, 12, 0.95); border-left: 1px solid var(--border); padding: 18px; box-shadow: -10px 0 30px rgba(0,0,0,0.45); z-index: 6; overflow-y: auto; backdrop-filter: blur(12px); }
 .profile-drawer.hidden { display: none !important; }

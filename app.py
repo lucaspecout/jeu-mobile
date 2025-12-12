@@ -130,6 +130,13 @@ LEVEL_SEED = [
         "difficulty": "difficile",
         "icon": "target",
     },
+    {
+        "slug": "reflexe",
+        "name": "Sprint réflexe",
+        "description": "Mini-mission gamifiée avec animations lumineuses et réactions chronométrées.",
+        "difficulty": "flash",
+        "icon": "joystick",
+    },
 ]
 
 AVATAR_CHOICES = {"alpha", "bravo", "charlie", "delta"}

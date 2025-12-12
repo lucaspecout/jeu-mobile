@@ -240,7 +240,7 @@ function clearProfileAlert() {
 
 function renderLevel(level) {
   const wrapper = document.createElement('article');
-  wrapper.className = 'menu-card';
+  wrapper.className = `menu-card mission-${level.slug}`;
   wrapper.innerHTML = `
     <div class="icon">${iconFor(level.icon)}</div>
     <p class="eyebrow">${level.slug}</p>
@@ -259,6 +259,7 @@ function iconFor(icon) {
   switch (icon) {
     case 'pulse': return '⚡';
     case 'target': return '🎯';
+    case 'joystick': return '🕹️';
     case 'shield':
     default: return '🛡️';
   }
