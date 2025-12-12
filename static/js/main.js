@@ -167,8 +167,10 @@ async function refreshMenu() {
     return;
   }
   const data = await res.json();
-  levelMenu.innerHTML = '';
-  data.levels.forEach((lvl) => levelMenu.appendChild(renderLevel(lvl)));
+  if (levelMenu) {
+    levelMenu.innerHTML = '';
+    data.levels.forEach((lvl) => levelMenu.appendChild(renderLevel(lvl)));
+  }
   currentUser = data.user;
   updateStatus(currentUser, data.levels.filter((l) => l.progress).length);
   fillProfileForm(currentUser);
@@ -241,6 +243,7 @@ function setupProfileMenu() {
 }
 
 function setupMenuActions() {
+  if (!levelMenu) return;
   levelMenu.addEventListener('click', async (evt) => {
     const btn = evt.target.closest('button[data-level]');
     if (!btn) return;
@@ -256,9 +259,15 @@ function setupMenuActions() {
 }
 
 function animateSuccess(message) {
-  gsap.fromTo('#beam', { opacity: 0 }, { opacity: 0.6, duration: 0.6, ease: 'power2.out' });
-  gsap.fromTo('#scanner', { xPercent: -100 }, { xPercent: 120, duration: 1.4, ease: 'power2.inOut' });
-  gsap.fromTo('#pulse-line', { scaleX: 0 }, { scaleX: 1, transformOrigin: '0 0', duration: 0.8, ease: 'expo.out' });
+  if (qs('#beam')) {
+    gsap.fromTo('#beam', { opacity: 0 }, { opacity: 0.6, duration: 0.6, ease: 'power2.out' });
+  }
+  if (qs('#scanner')) {
+    gsap.fromTo('#scanner', { xPercent: -100 }, { xPercent: 120, duration: 1.4, ease: 'power2.inOut' });
+  }
+  if (qs('#pulse-line')) {
+    gsap.fromTo('#pulse-line', { scaleX: 0 }, { scaleX: 1, transformOrigin: '0 0', duration: 0.8, ease: 'expo.out' });
+  }
   log(message);
 }
 
@@ -266,12 +275,15 @@ function log(message) {
   const entry = document.createElement('div');
   entry.className = 'log-entry';
   entry.textContent = `${new Date().toLocaleTimeString()} — ${message}`;
+  if (!logPanel) return;
   logPanel.prepend(entry);
   while (logPanel.children.length > 6) logPanel.removeChild(logPanel.lastChild);
 }
 
 function setupSimulator() {
-  qs('#simulate-btn').addEventListener('click', () => animateSuccess('Simulation réussie : animation déclenchée.'));
+  const simulateBtn = qs('#simulate-btn');
+  if (!simulateBtn) return;
+  simulateBtn.addEventListener('click', () => animateSuccess('Simulation réussie : animation déclenchée.'));
 }
 
 async function init() {
