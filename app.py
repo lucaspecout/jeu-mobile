@@ -80,6 +80,16 @@ class Questionnaire(db.Model):
     questions = db.relationship("Question", back_populates="questionnaire", cascade="all, delete-orphan")
 
 
+class QuestionnaireResult(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    score = db.Column(db.Integer, default=0)
+    max_score = db.Column(db.Integer, default=0)
+    attempts = db.Column(db.Integer, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    questionnaire_id = db.Column(db.Integer, db.ForeignKey("questionnaire.id"), nullable=False)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Question(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     text = db.Column(db.Text, nullable=False)
@@ -249,11 +259,24 @@ def serialize_questionnaire(questionnaire: Questionnaire, include_questions: boo
         "category": questionnaire.category,
         "icon": questionnaire.icon,
         "question_count": len(questionnaire.questions),
+        "total_points": sum(question.points or 0 for question in questionnaire.questions),
         "created_at": questionnaire.created_at.isoformat() if questionnaire.created_at else None,
     }
     if include_questions:
         data["questions"] = [serialize_question(q) for q in questionnaire.questions]
     return data
+
+
+def serialize_questionnaire_result(result: QuestionnaireResult):
+    if not result:
+        return None
+    return {
+        "score": result.score,
+        "max_score": result.max_score,
+        "attempts": result.attempts,
+        "questionnaire_id": result.questionnaire_id,
+        "updated_at": result.updated_at.isoformat() if result.updated_at else None,
+    }
 
 
 def current_user():
@@ -270,17 +293,37 @@ def register_routes(app: Flask) -> None:
 
         missions_completed = Progress.query.filter(Progress.status != "non_commence").count()
         total_rescuers = User.query.count()
+        progress_scores = (
+            db.session.query(
+                Progress.user_id.label("user_id"),
+                func.count(Progress.id).label("missions"),
+                func.coalesce(func.sum(Progress.score), 0).label("mission_score"),
+            )
+            .group_by(Progress.user_id)
+            .subquery()
+        )
+
+        questionnaire_scores = (
+            db.session.query(
+                QuestionnaireResult.user_id.label("user_id"),
+                func.coalesce(func.sum(QuestionnaireResult.score), 0).label("quiz_score"),
+            )
+            .group_by(QuestionnaireResult.user_id)
+            .subquery()
+        )
+
         leaderboard_rows = (
             db.session.query(
                 User.id,
                 User.username,
                 User.avatar,
-                func.count(Progress.id),
-                func.coalesce(func.sum(Progress.score), 0),
+                func.coalesce(progress_scores.c.missions, 0),
+                func.coalesce(progress_scores.c.mission_score, 0),
+                func.coalesce(questionnaire_scores.c.quiz_score, 0),
             )
-            .outerjoin(Progress)
-            .group_by(User.id)
-            .order_by(func.coalesce(func.sum(Progress.score), 0).desc())
+            .outerjoin(progress_scores, User.id == progress_scores.c.user_id)
+            .outerjoin(questionnaire_scores, User.id == questionnaire_scores.c.user_id)
+            .order_by((func.coalesce(progress_scores.c.mission_score, 0) + func.coalesce(questionnaire_scores.c.quiz_score, 0)).desc())
             .all()
         )
         leaderboard = [
@@ -288,7 +331,7 @@ def register_routes(app: Flask) -> None:
                 "username": row[1],
                 "avatar": row[2] or "alpha",
                 "missions": row[3],
-                "score": int(row[4] or 0),
+                "score": int((row[4] or 0) + (row[5] or 0)),
             }
             for row in leaderboard_rows
         ]
@@ -309,7 +352,7 @@ def register_routes(app: Flask) -> None:
                 "icon": "🎯",
                 "title": "Précision",
                 "description": "Score cumulé supérieur à 200",
-                "earned": sum(item[4] or 0 for item in leaderboard_rows) >= 200,
+                "earned": sum((item[4] or 0) + (item[5] or 0) for item in leaderboard_rows) >= 200,
             },
         ]
         dashboard_stats = {
@@ -455,10 +498,18 @@ def register_routes(app: Flask) -> None:
         user = current_user()
         if not user:
             return jsonify({"user": None})
+        progress_list = [serialize_progress(p) for p in user.progress]
+        questionnaire_results = QuestionnaireResult.query.filter_by(user_id=user.id).all()
+        quiz_points = sum(result.score for result in questionnaire_results)
+        mission_points = sum(p.score for p in user.progress)
         return jsonify(
             {
                 **serialize_user(user),
-                "progress": [serialize_progress(p) for p in user.progress],
+                "progress": progress_list,
+                "questionnaire_results": [serialize_questionnaire_result(r) for r in questionnaire_results],
+                "quiz_points": quiz_points,
+                "mission_points": mission_points,
+                "total_points": quiz_points + mission_points,
             }
         )
 
@@ -555,8 +606,15 @@ def register_routes(app: Flask) -> None:
             return jsonify({"error": "Authentification requise"}), 401
         questionnaires = Questionnaire.query.order_by(Questionnaire.created_at.desc()).all()
         include_questions = user.role in {"admin", "formateur"}
+        user_results = {}
+        if user:
+            results = QuestionnaireResult.query.filter_by(user_id=user.id).all()
+            user_results = {res.questionnaire_id: serialize_questionnaire_result(res) for res in results}
         return jsonify({
-            "questionnaires": [serialize_questionnaire(q, include_questions=include_questions) for q in questionnaires]
+            "questionnaires": [
+                {**serialize_questionnaire(q, include_questions=include_questions), "user_result": user_results.get(q.id)}
+                for q in questionnaires
+            ]
         })
 
     @app.route("/api/questionnaires/<int:questionnaire_id>")
@@ -566,7 +624,34 @@ def register_routes(app: Flask) -> None:
             return jsonify({"error": "Authentification requise"}), 401
 
         questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
-        return jsonify(serialize_questionnaire(questionnaire, include_questions=True))
+        existing = None
+        if user:
+            existing = QuestionnaireResult.query.filter_by(user_id=user.id, questionnaire_id=questionnaire.id).first()
+        return jsonify(
+            {**serialize_questionnaire(questionnaire, include_questions=True), "user_result": serialize_questionnaire_result(existing)}
+        )
+
+    @app.route("/api/questionnaires/<int:questionnaire_id>/result", methods=["POST"])
+    def api_record_questionnaire_result(questionnaire_id: int):
+        user = current_user()
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
+
+        questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+        data = request.get_json() or {}
+        score = max(0, int(data.get("score") or 0))
+        max_score = max(0, int(data.get("max_score") or 0))
+
+        result = QuestionnaireResult.query.filter_by(user_id=user.id, questionnaire_id=questionnaire.id).first()
+        if not result:
+            result = QuestionnaireResult(user_id=user.id, questionnaire_id=questionnaire.id)
+            db.session.add(result)
+
+        result.attempts = (result.attempts or 0) + 1
+        result.score = max(result.score or 0, score)
+        result.max_score = max(result.max_score or 0, max_score)
+        db.session.commit()
+        return jsonify(serialize_questionnaire_result(result))
 
     @app.route("/api/questionnaires/<int:questionnaire_id>", methods=["DELETE"])
     def api_delete_questionnaire(questionnaire_id: int):
