@@ -293,6 +293,10 @@ body {
 .menu-card .launch { margin-top: 12px; }
 .menu-card::after { content: ""; position: absolute; inset: -40% auto auto -40%; width: 120px; height: 120px; background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 60%); transform: rotate(25deg); opacity: 0.6; }
 .menu-card:hover { box-shadow: var(--glow); transform: translateY(-2px); transition: 0.2s ease; }
+.menu-card--featured { border-color: rgba(126,224,255,0.4); box-shadow: 0 0 0 1px rgba(126,224,255,0.25), 0 14px 32px rgba(0,0,0,0.36); background: linear-gradient(135deg, rgba(126,224,255,0.16), rgba(255,96,175,0.12)); }
+.menu-card--featured .icon { font-size: 28px; filter: drop-shadow(0 0 10px rgba(126,224,255,0.45)); }
+.menu-card--featured .eyebrow { letter-spacing: 0.08em; }
+.menu-card--featured .launch { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .menu-card.mission-reflexe { background: linear-gradient(135deg, rgba(74, 222, 255, 0.08), rgba(255, 96, 175, 0.12)); border-color: rgba(255,255,255,0.08); box-shadow: 0 0 0 1px rgba(255,255,255,0.03); }
 .menu-card.mission-reflexe::before { content: ""; position: absolute; inset: -40% auto auto 10%; width: 180px; height: 180px; background: radial-gradient(circle, rgba(55,225,255,0.22), transparent 60%); filter: blur(10px); animation: orbit 6s linear infinite; }
 .menu-card.mission-reflexe::after { inset: auto -35% -35% auto; width: 140px; height: 140px; background: radial-gradient(circle, rgba(255,111,181,0.22), transparent 65%); animation: pulseGlow 3s ease-in-out infinite; }

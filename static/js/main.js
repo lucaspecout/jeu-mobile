@@ -108,6 +108,8 @@ let playerState = {
   totalPoints: 0,
 };
 
+const FEATURED_MISSION_SLUG = 'mission';
+
 function clearAuthState() {
   localStorage.removeItem('isAuthenticated');
 }
@@ -240,7 +242,8 @@ function clearProfileAlert() {
 
 function renderLevel(level) {
   const wrapper = document.createElement('article');
-  wrapper.className = `menu-card mission-${level.slug}`;
+  const isFeatured = level.slug === FEATURED_MISSION_SLUG;
+  wrapper.className = `menu-card mission-${level.slug} ${isFeatured ? 'menu-card--featured' : ''}`;
   wrapper.innerHTML = `
     <div class="icon">${iconFor(level.icon)}</div>
     <p class="eyebrow">${level.slug}</p>
@@ -248,6 +251,7 @@ function renderLevel(level) {
     <p class="desc">${level.description}</p>
     <p class="difficulty">${level.difficulty.toUpperCase()}</p>
     <div class="launch">
+      ${isFeatured ? '<span class="chip chip--ghost">Mission mise en avant</span>' : ''}
       <button class="btn primary" data-level="${level.id}" data-slug="${level.slug}">Lancer</button>
       <span class="chip">${level.progress ? level.progress.status : 'Nouveau'}</span>
     </div>
@@ -275,7 +279,8 @@ async function refreshMenu() {
   const data = await res.json();
   if (levelMenu) {
     levelMenu.innerHTML = '';
-    data.levels.forEach((lvl) => levelMenu.appendChild(renderLevel(lvl)));
+    const featured = data.levels.find((lvl) => lvl.slug === FEATURED_MISSION_SLUG) || data.levels[0];
+    if (featured) levelMenu.appendChild(renderLevel(featured));
   }
   currentUser = data.user;
   updateStatus(currentUser, data.levels.filter((l) => l.progress).length);
@@ -864,13 +869,14 @@ function setupPlayerNavigation() {
   if (playerNext) {
     playerNext.addEventListener('click', () => {
       if (!playerState.questionnaire) return;
-      const { isCorrect } = showAnswerFeedback();
+      const { isCorrect, skipped } = showAnswerFeedback();
+      if (skipped) return;
       const total = playerState.questionnaire.questions.length;
-      const revealDelay = isCorrect ? 3000 : 1200;
+      const revealDelay = isCorrect ? 4000 : 3000;
       setTimeout(() => {
         if (playerState.index >= total - 1) {
           showResult();
-          setTimeout(() => closePlayer(), 1200);
+          setTimeout(() => closePlayer(), 1800);
           return;
         }
         playerState.index += 1;
@@ -904,6 +910,12 @@ function updatePlayerProgress() {
   if (playerNext) playerNext.textContent = playerState.index === total - 1 ? 'Terminer' : 'Suivant';
 }
 
+function updatePlayerNextState(question) {
+  if (!playerNext) return;
+  const answer = playerState.answers[playerState.index];
+  playerNext.disabled = !isAnswerProvided(question, answer);
+}
+
 function isAnswerCorrect(question, answer) {
   if (question.type === 'text') {
     const expected = (question.options || []).find((opt) => opt.is_correct)?.label || question.options?.[0]?.label || '';
@@ -922,6 +934,12 @@ function isAnswerCorrect(question, answer) {
 
   const correct = (question.options || []).find((opt) => opt.is_correct);
   return correct ? `${answer}` === `${correct.id}` : false;
+}
+
+function isAnswerProvided(question, answer) {
+  if (question.type === 'text') return Boolean(`${answer || ''}`.trim());
+  if (question.type === 'multiple') return Array.isArray(answer) && answer.length > 0;
+  return answer !== undefined && answer !== null && `${answer}` !== '';
 }
 
 function getCorrectLabels(question) {
@@ -974,6 +992,7 @@ function renderPlayerQuestion() {
     textarea.value = savedAnswer || '';
     textarea.addEventListener('input', (evt) => {
       playerState.answers[playerState.index] = evt.target.value;
+      updatePlayerNextState(question);
     });
     optionsContainer.appendChild(textarea);
   } else {
@@ -1001,6 +1020,7 @@ function renderPlayerQuestion() {
         } else {
           playerState.answers[playerState.index] = opt.id;
         }
+        updatePlayerNextState(question);
       });
       wrapper.appendChild(input);
       const span = document.createElement('span');
@@ -1010,12 +1030,23 @@ function renderPlayerQuestion() {
     });
   }
   updatePlayerProgress();
+  updatePlayerNextState(question);
 }
 
 function showAnswerFeedback() {
   if (!playerState.questionnaire) return { isCorrect: false };
   const question = playerState.questionnaire.questions[playerState.index];
   const answer = playerState.answers[playerState.index];
+  if (!isAnswerProvided(question, answer)) {
+    const feedback = qs('#player-feedback');
+    if (feedback) {
+      feedback.classList.remove('hidden');
+      feedback.classList.remove('player-feedback--success');
+      feedback.classList.add('player-feedback--error');
+      feedback.textContent = 'Indique une réponse avant de continuer.';
+    }
+    return { isCorrect: false, skipped: true };
+  }
   const options = playerQuestion?.querySelectorAll('.option-tile') || [];
   const correctIds = (question.options || []).filter((opt) => opt.is_correct).map((opt) => `${opt.id}`);
 
@@ -1044,9 +1075,16 @@ function showAnswerFeedback() {
     feedback.classList.remove('hidden');
     feedback.classList.toggle('player-feedback--success', isCorrect);
     feedback.classList.toggle('player-feedback--error', !isCorrect);
-    feedback.textContent = isCorrect
-      ? 'Bonne réponse !'
-      : `Réponse attendue : ${getCorrectLabels(question)}`;
+    if (question.type === 'text') {
+      const trimmed = `${answer || ''}`.trim() || '—';
+      feedback.textContent = isCorrect
+        ? `Bonne réponse ! (Ta réponse : ${trimmed})`
+        : `Réponse attendue : ${getCorrectLabels(question)} — Ta réponse : ${trimmed}`;
+    } else {
+      feedback.textContent = isCorrect
+        ? 'Bonne réponse !'
+        : `Réponse attendue : ${getCorrectLabels(question)}`;
+    }
   }
   return { isCorrect };
 }
