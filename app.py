@@ -713,9 +713,75 @@ def register_routes(app: Flask) -> None:
                     if is_correct and q_type == "single":
                         seen_correct = True
                     db.session.add(AnswerOption(label=label, is_correct=is_correct, question=question))
+            elif q_type == "text":
+                text_option = next(
+                    ((opt.get("label") or "").strip() for opt in options if (opt.get("label") or "").strip()),
+                    None,
+                )
+                if text_option:
+                    db.session.add(AnswerOption(label=text_option, is_correct=True, question=question))
 
         db.session.commit()
         return jsonify(serialize_questionnaire(questionnaire)), 201
+
+    @app.route("/api/questionnaires/<int:questionnaire_id>", methods=["PUT"])
+    def api_update_questionnaire(questionnaire_id: int):
+        designer, error = ensure_designer_access()
+        if error:
+            return error
+
+        questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+
+        data = request.get_json() or {}
+        title = (data.get("title") or "").strip()
+        category = (data.get("category") or "Général").strip() or "Général"
+        icon = (data.get("icon") or "sparkles").strip() or "sparkles"
+        description = (data.get("description") or "").strip()
+        questions_data = data.get("questions") or []
+
+        if not title:
+            return jsonify({"error": "Un titre est requis"}), 400
+        if not questions_data:
+            return jsonify({"error": "Ajoutez au moins une question"}), 400
+
+        questionnaire.title = title
+        questionnaire.description = description
+        questionnaire.category = category
+        questionnaire.icon = icon
+
+        questionnaire.questions.clear()
+        db.session.flush()
+
+        for question_data in questions_data:
+            text = (question_data.get("text") or "").strip()
+            q_type = (question_data.get("type") or "single").strip()
+            points = int(question_data.get("points") or 0)
+            if not text:
+                continue
+            question = Question(text=text, type=q_type, points=max(points, 0), questionnaire=questionnaire)
+            db.session.add(question)
+
+            options = question_data.get("options") or []
+            if q_type in {"single", "multiple"}:
+                seen_correct = False
+                for opt in options:
+                    label = (opt.get("label") or "").strip()
+                    if not label:
+                        continue
+                    is_correct = bool(opt.get("is_correct")) and (q_type == "multiple" or not seen_correct)
+                    if is_correct and q_type == "single":
+                        seen_correct = True
+                    db.session.add(AnswerOption(label=label, is_correct=is_correct, question=question))
+            elif q_type == "text":
+                text_option = next(
+                    ((opt.get("label") or "").strip() for opt in options if (opt.get("label") or "").strip()),
+                    None,
+                )
+                if text_option:
+                    db.session.add(AnswerOption(label=text_option, is_correct=True, question=question))
+
+        db.session.commit()
+        return jsonify(serialize_questionnaire(questionnaire))
 
 
 app = create_app()

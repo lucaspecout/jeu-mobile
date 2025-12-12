@@ -93,6 +93,7 @@ let profileData = null;
 const logPanel = qs('#log-panel');
 let questionIdCounter = 1;
 let wizardState = {
+  editingId: null,
   title: 'Brief PSE terrain',
   description: 'Ton aperçu évolue en direct : points, types de réponses et icône du formulaire.',
   category: 'Général',
@@ -146,9 +147,9 @@ function updateStatus(user, progressCount) {
   }
 }
 
-async function postJson(url, payload) {
+async function postJson(url, payload, method = 'POST') {
   const res = await fetch(url, {
-    method: 'POST',
+    method,
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   });
@@ -423,7 +424,7 @@ function log(message) {
 }
 
 function defaultOptions(type) {
-  if (type === 'text') return [];
+  if (type === 'text') return [{ id: `${Date.now()}-text`, label: '', is_correct: true }];
   return [
     { id: `${Date.now()}-a`, label: 'Réponse A', is_correct: true },
     { id: `${Date.now()}-b`, label: 'Réponse B', is_correct: false },
@@ -517,7 +518,7 @@ function renderQuestion(question) {
     .map(
       (opt) => `
         <div class="option-row" data-option="${opt.id}">
-          <input type="text" class="option-text" value="${opt.label || ''}" placeholder="Proposition"> 
+          <input type="text" class="option-text" value="${opt.label || ''}" placeholder="Proposition">
           <label class="option-check">
             ${question.type === 'multiple'
               ? `<input type="checkbox" class="option-correct" ${opt.is_correct ? 'checked' : ''}> Bonne réponse`
@@ -533,7 +534,16 @@ function renderQuestion(question) {
     <div class="option-list" ${question.type === 'text' ? 'hidden' : ''}>
       ${optionsHtml}
       <button class="btn ghost add-option" type="button">Ajouter une option</button>
-    </div>`;
+    </div>
+    ${
+      question.type === 'text'
+        ? `<div class="text-expected">
+            <label>Réponse attendue
+              <input class="text-expected__input" value="${question.options?.[0]?.label || ''}" placeholder="Réponse correcte" />
+            </label>
+          </div>`
+        : ''
+    }`;
 
   return `
     <article class="question-card" data-question="${question.id}">
@@ -657,6 +667,10 @@ function handleWizardInputs() {
         const opt = question.options.find((o) => `${o.id}` === `${optId}`);
         if (opt) opt.label = evt.target.value;
       }
+      if (evt.target.classList.contains('text-expected__input')) {
+        const expected = question.options?.[0];
+        if (expected) expected.label = evt.target.value;
+      }
       updatePreview();
     });
 
@@ -730,8 +744,16 @@ async function saveQuestionnaire() {
           options: q.options,
         })),
       };
-      await postJson('/api/questionnaires', payload);
-      setWizardAlert('Questionnaire publié et enregistré dans la bibliothèque.', false);
+      const endpoint = wizardState.editingId ? `/api/questionnaires/${wizardState.editingId}` : '/api/questionnaires';
+      const method = wizardState.editingId ? 'PUT' : 'POST';
+      await postJson(endpoint, payload, method);
+      setWizardAlert(
+        wizardState.editingId
+          ? 'Questionnaire mis à jour avec succès.'
+          : 'Questionnaire publié et enregistré dans la bibliothèque.',
+        false,
+      );
+      wizardState.editingId = wizardState.editingId || null;
       await refreshQuestionnaires();
     } catch (err) {
       setWizardAlert(err.message);
@@ -750,6 +772,7 @@ async function refreshQuestionnaires() {
       const card = document.createElement('article');
       card.className = 'questionnaire-card';
       card.dataset.id = q.id;
+      const canEdit = currentUser?.role === 'admin' || currentUser?.role === 'formateur';
       const bestScore = q.user_result?.score ?? 0;
       const bestMax = q.user_result?.max_score || q.total_points || q.questions?.reduce((acc, question) => acc + (question.points || 0), 0) || q.question_count;
       const statusLabel = q.user_result
@@ -767,6 +790,7 @@ async function refreshQuestionnaires() {
             <span class="chip ${q.user_result ? 'chip--success' : 'chip--ghost'}">${statusLabel}</span>
             ${currentUser?.role === 'admin' ? '<span class="admin-pill">Admin</span>' : ''}
             <button class="btn secondary play-questionnaire" data-id="${q.id}">Ouvrir</button>
+            ${canEdit ? `<button class="btn ghost edit-questionnaire" data-id="${q.id}">Modifier</button>` : ''}
             ${currentUser?.role === 'admin' ? `<button class="btn danger delete-questionnaire" data-id="${q.id}">Supprimer</button>` : ''}
           </div>
         </div>
@@ -783,12 +807,27 @@ function setupQuestionnaireActions() {
   questionnaireCards.addEventListener('click', async (evt) => {
     const playBtn = evt.target.closest('.play-questionnaire');
     const deleteBtn = evt.target.closest('.delete-questionnaire');
+    const editBtn = evt.target.closest('.edit-questionnaire');
     if (playBtn) {
       try {
         const questionnaire = await fetchQuestionnaireDetail(playBtn.dataset.id);
         openPlayer(questionnaire);
       } catch (err) {
         setAlert(err.message);
+      }
+      return;
+    }
+
+    if (editBtn) {
+      try {
+        const questionnaire = await fetchQuestionnaireDetail(editBtn.dataset.id);
+        loadQuestionnaireForEditing(questionnaire);
+        setWizardStep(1);
+        updatePreview();
+        setWizardAlert('Questionnaire chargé pour modification.', false);
+        document.querySelector('#wizard-title')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } catch (err) {
+        setAlert("Impossible de charger ce questionnaire pour modification.");
       }
       return;
     }
@@ -825,6 +864,7 @@ function setupPlayerNavigation() {
       setTimeout(() => {
         if (playerState.index >= total - 1) {
           showResult();
+          setTimeout(() => closePlayer(), 1200);
           return;
         }
         playerState.index += 1;
@@ -859,7 +899,12 @@ function updatePlayerProgress() {
 }
 
 function isAnswerCorrect(question, answer) {
-  if (question.type === 'text') return Boolean(answer && `${answer}`.trim());
+  if (question.type === 'text') {
+    const expected = (question.options || []).find((opt) => opt.is_correct)?.label || question.options?.[0]?.label || '';
+    if (!expected) return false;
+    if (!answer || !`${answer}`.trim()) return false;
+    return expected.trim().toLowerCase() === `${answer}`.trim().toLowerCase();
+  }
 
   if (question.type === 'multiple') {
     const correctIds = (question.options || []).filter((opt) => opt.is_correct).map((opt) => `${opt.id}`);
@@ -874,7 +919,7 @@ function isAnswerCorrect(question, answer) {
 }
 
 function getCorrectLabels(question) {
-  if (question.type === 'text') return 'Réponse libre attendue';
+  if (question.type === 'text') return (question.options?.[0]?.label || '').trim() || 'Réponse libre attendue';
   const labels = (question.options || []).filter((opt) => opt.is_correct).map((opt) => opt.label || '—');
   return labels.length ? labels.join(', ') : 'Réponse attendue';
 }
@@ -1009,7 +1054,9 @@ async function showResult() {
   const ratio = playerState.totalPoints ? playerState.score / playerState.totalPoints : 0;
   renderStars(ratio);
   if (resultLabel) resultLabel.textContent = ratio >= 0.8 ? 'Excellente maîtrise' : ratio >= 0.5 ? 'Bien joué' : 'À retravailler';
-  if (resultDetail) resultDetail.textContent = `Score ${playerState.score} / ${playerState.totalPoints} points.`;
+  const recordScore = Math.max(playerState.bestScore || 0, playerState.score);
+  const recordMax = Math.max(playerState.bestMax || playerState.totalPoints, playerState.totalPoints);
+  if (resultDetail) resultDetail.textContent = `Score ${playerState.score} / ${playerState.totalPoints} points (record ${recordScore}/${recordMax}).`;
   if (playerResult) playerResult.classList.remove('hidden');
   updatePlayerProgress();
   await persistQuestionnaireResult();
@@ -1022,6 +1069,8 @@ function openPlayer(questionnaire) {
     index: 0,
     score: 0,
     totalPoints: questionnaire.questions.reduce((acc, q) => acc + (q.points || 0), 0),
+    bestScore: questionnaire.user_result?.score || 0,
+    bestMax: questionnaire.user_result?.max_score || questionnaire.total_points,
   };
   if (playerTitle) playerTitle.textContent = questionnaire.title;
   if (playerCategory) playerCategory.textContent = questionnaire.category;
@@ -1036,9 +1085,50 @@ function closePlayer() {
   playerState = { questionnaire: null, answers: {}, index: 0, score: 0, totalPoints: 0 };
 }
 
+function normalizeOptions(question) {
+  if (question.type === 'text') {
+    const expected = question.options?.[0]?.label || '';
+    return [{ id: `${question.id}-text`, label: expected, is_correct: true }];
+  }
+  return (question.options || []).map((opt, idx) => ({
+    id: opt.id || `${question.id}-opt-${idx}`,
+    label: opt.label,
+    is_correct: Boolean(opt.is_correct),
+  }));
+}
+
+function loadQuestionnaireForEditing(questionnaire) {
+  wizardState.editingId = questionnaire.id;
+  wizardState.title = questionnaire.title;
+  wizardState.description = questionnaire.description;
+  wizardState.category = questionnaire.category;
+  wizardState.icon = questionnaire.icon;
+  wizardState.questions = (questionnaire.questions || []).map((q) => ({
+    id: `q-${q.id}`,
+    text: q.text,
+    type: q.type,
+    points: q.points,
+    options: normalizeOptions(q),
+  }));
+  if (!wizardState.questions.length) {
+    wizardState.questions = [createQuestion('single')];
+  }
+
+  if (wizardTitle) wizardTitle.value = wizardState.title;
+  if (wizardDescription) wizardDescription.value = wizardState.description;
+  if (wizardCategory) wizardCategory.value = wizardState.category;
+  wizardIcons.forEach((btn) => btn.classList.toggle('active', btn.dataset.icon === wizardState.icon));
+  renderQuestions();
+  updateQuestionnaireSummary();
+}
+
 function initQuestionnaireWizard() {
   if (!wizardBody) return;
-  wizardState.questions = [createQuestion('single')];
+  wizardState = {
+    ...wizardState,
+    editingId: null,
+    questions: [createQuestion('single')],
+  };
   if (wizardTitle) wizardTitle.value = wizardState.title;
   if (wizardDescription) wizardDescription.value = wizardState.description;
   if (wizardCategory) wizardCategory.value = wizardState.category;
