@@ -3,12 +3,18 @@ const qsa = (sel) => Array.from(document.querySelectorAll(sel));
 
 const levelMenu = qs('#level-menu');
 const appAlert = qs('#app-alert');
-const logoutBtn = qs('#logout-btn');
 const statusTitle = qs('#status-title');
 const statusSub = qs('#status-sub');
 const statusUser = qs('#status-user');
 const statusProgress = qs('#status-progress');
 const profileBtn = qs('#profile-btn');
+const profileMenu = qs('#profile-menu');
+const profileMenuRoot = qs('#profile-menu-root');
+const menuProfileBtn = qs('#menu-profile');
+const menuLogoutBtn = qs('#menu-logout');
+const menuUsername = qs('#menu-username');
+const menuEmail = qs('#menu-email');
+const menuAvatar = qs('#menu-avatar');
 const profileDrawer = qs('#profile-drawer');
 const closeProfile = qs('#close-profile');
 const profileForm = qs('#profile-form');
@@ -71,6 +77,7 @@ async function postJson(url, payload) {
 }
 
 function showProfileDrawer() {
+  closeProfileMenu();
   profileDrawer?.classList.remove('hidden');
 }
 
@@ -88,6 +95,20 @@ function fillProfileForm(user) {
     chip.classList.toggle('active', chip.dataset.avatar === profileAvatarValue.value);
   });
   applyAvatar(profileAvatar, user.avatar);
+  applyAvatar(menuAvatar, user.avatar);
+  if (menuUsername) menuUsername.textContent = user.username || '—';
+  if (menuEmail) menuEmail.textContent = user.email || '—';
+}
+
+function toggleProfileMenu(force) {
+  if (!profileMenu || !profileBtn) return;
+  const shouldOpen = typeof force === 'boolean' ? force : profileMenu.classList.contains('hidden');
+  profileMenu.classList.toggle('hidden', !shouldOpen);
+  profileBtn.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+}
+
+function closeProfileMenu() {
+  toggleProfileMenu(false);
 }
 
 function setupProfileChips() {
@@ -153,20 +174,17 @@ async function refreshMenu() {
   fillProfileForm(currentUser);
 }
 
-function setupLogout() {
-  logoutBtn.addEventListener('click', async () => {
-    try {
-      await postJson('/api/logout', {});
-      clearAuthState();
-      window.location.href = '/auth';
-    } catch (err) {
-      setAlert(err.message);
-    }
-  });
+async function handleLogout() {
+  try {
+    await postJson('/api/logout', {});
+    clearAuthState();
+    window.location.href = '/auth';
+  } catch (err) {
+    setAlert(err.message);
+  }
 }
 
 function setupProfileDrawer() {
-  if (profileBtn) profileBtn.addEventListener('click', showProfileDrawer);
   if (closeProfile) closeProfile.addEventListener('click', hideProfileDrawer);
 
   if (profileForm) {
@@ -187,6 +205,39 @@ function setupProfileDrawer() {
       }
     });
   }
+}
+
+function setupProfileMenu() {
+  if (profileBtn) {
+    profileBtn.addEventListener('click', (evt) => {
+      evt.stopPropagation();
+      toggleProfileMenu();
+    });
+  }
+
+  if (menuProfileBtn) {
+    menuProfileBtn.addEventListener('click', (evt) => {
+      evt.stopPropagation();
+      showProfileDrawer();
+    });
+  }
+
+  if (menuLogoutBtn) {
+    menuLogoutBtn.addEventListener('click', async (evt) => {
+      evt.stopPropagation();
+      closeProfileMenu();
+      await handleLogout();
+    });
+  }
+
+  document.addEventListener('click', (evt) => {
+    if (!profileMenuRoot) return;
+    if (!profileMenuRoot.contains(evt.target)) closeProfileMenu();
+  });
+
+  document.addEventListener('keydown', (evt) => {
+    if (evt.key === 'Escape') closeProfileMenu();
+  });
 }
 
 function setupMenuActions() {
@@ -224,10 +275,10 @@ function setupSimulator() {
 }
 
 async function init() {
-  setupLogout();
   setupMenuActions();
   setupProfileChips();
   setupProfileDrawer();
+  setupProfileMenu();
   setupSimulator();
   await refreshMenu();
   log('Interface initialisée avec GSAP et Flask.');
