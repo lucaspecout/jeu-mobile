@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mission {{ level.name }} - Protec Rescue 38</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  </head>
+  <body>
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="scanline" aria-hidden="true"></div>
+    <main class="shell" style="max-width: 720px; margin: 3rem auto;">
+      <header class="panel__header" style="margin-bottom: 1rem;">
+        <div>
+          <p class="eyebrow">Mission</p>
+          <h1>{{ level.name }}</h1>
+          <p class="muted">{{ level.description }}</p>
+        </div>
+        <span class="chip chip--pulse">{{ level.difficulty|upper }}</span>
+      </header>
+
+      <section class="panel panel--frost">
+        <div class="panel__header">
+          <div>
+            <p class="eyebrow">Session active</p>
+            <h2>Brief opérationnel</h2>
+            <p class="muted">Vous êtes redirigé sur une page dédiée pour suivre la mission sélectionnée.</p>
+          </div>
+          <a class="btn secondary" href="{{ url_for('missions_page') }}">↩ Retour au hangar</a>
+        </div>
+        <div class="card card--glass" style="margin-top: 1rem;">
+          <p class="label">État</p>
+          <p class="muted">{{ progress.status.replace('_', ' ') if progress else 'en cours' }}</p>
+          <p class="label" style="margin-top: 1rem;">Score actuel</p>
+          <p class="muted">{{ progress.score if progress else 0 }} pts</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

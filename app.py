@@ -406,6 +406,20 @@ def register_routes(app: Flask) -> None:
     def missions_page():
         return render_shell("missions")
 
+    @app.route("/mission/<slug>")
+    def mission_detail(slug):
+        user = current_user()
+        if not user:
+            return redirect(url_for("auth"))
+
+        level = Level.query.filter_by(slug=slug).first_or_404()
+        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+        if not progress:
+            progress = Progress(user_id=user.id, level_id=level.id, status="en_cours")
+            db.session.add(progress)
+            db.session.commit()
+        return render_template("mission.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
+
     @app.route("/mini-game")
     def mini_game_page():
         return render_shell("mini-game")
