@@ -859,8 +859,9 @@ function setupPlayerNavigation() {
   if (playerNext) {
     playerNext.addEventListener('click', () => {
       if (!playerState.questionnaire) return;
-      showAnswerFeedback();
+      const { isCorrect } = showAnswerFeedback();
       const total = playerState.questionnaire.questions.length;
+      const revealDelay = isCorrect ? 3000 : 1200;
       setTimeout(() => {
         if (playerState.index >= total - 1) {
           showResult();
@@ -869,7 +870,7 @@ function setupPlayerNavigation() {
         }
         playerState.index += 1;
         renderPlayerQuestion();
-      }, 700);
+      }, revealDelay);
     });
   }
 }
@@ -1014,7 +1015,7 @@ function showAnswerFeedback() {
   const correctIds = (question.options || []).filter((opt) => opt.is_correct).map((opt) => `${opt.id}`);
 
   options.forEach((wrapper) => {
-    wrapper.classList.remove('option-tile--correct', 'option-tile--wrong');
+    wrapper.classList.remove('option-tile--correct', 'option-tile--wrong', 'option-tile--celebrate');
     const input = wrapper.querySelector('input');
     if (!input) return;
     const id = `${input.value}`;
@@ -1023,6 +1024,16 @@ function showAnswerFeedback() {
   });
 
   const isCorrect = isAnswerCorrect(question, answer);
+  if (isCorrect) {
+    options.forEach((wrapper) => {
+      const input = wrapper.querySelector('input');
+      if (!input) return;
+      if (correctIds.includes(`${input.value}`)) {
+        wrapper.classList.add('option-tile--celebrate');
+        setTimeout(() => wrapper.classList.remove('option-tile--celebrate'), 3000);
+      }
+    });
+  }
   const feedback = qs('#player-feedback');
   if (feedback) {
     feedback.classList.remove('hidden');
