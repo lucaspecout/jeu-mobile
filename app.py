@@ -199,6 +199,7 @@ def ensure_locked_column():
     if "is_locked" in column_names:
         return
 
+    dialect = db.engine.dialect.name
     if dialect == "sqlite":
         db.session.execute(text("ALTER TABLE level ADD COLUMN is_locked BOOLEAN DEFAULT 0"))
     else:
