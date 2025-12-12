@@ -27,6 +27,9 @@ const profileAvatarValue = qs('#profile-avatar-value');
 const profileAvatar = qs('#profile-avatar');
 const profileAlert = qs('#profile-alert');
 const profileDeleteBtn = qs('#profile-delete');
+const profileTotalPoints = qs('#profile-total-points');
+const profileQuizPoints = qs('#profile-quiz-points');
+const profileMissionPoints = qs('#profile-mission-points');
 const avatarChips = qsa('#profile-avatars .avatar-chip');
 const wizardStepper = qs('#wizard-stepper');
 const wizardBody = qs('#wizard-body');
@@ -86,6 +89,7 @@ const QUESTION_TYPES = {
 };
 let wizardStep = 1;
 let currentUser = null;
+let profileData = null;
 const logPanel = qs('#log-panel');
 let questionIdCounter = 1;
 let wizardState = {
@@ -177,6 +181,27 @@ function fillProfileForm(user) {
   applyAvatar(menuAvatar, user.avatar);
   if (menuUsername) menuUsername.textContent = user.username || '—';
   if (menuEmail) menuEmail.textContent = user.email || '—';
+}
+
+function updateProfileMetrics(data) {
+  if (!data) return;
+  if (profileTotalPoints) profileTotalPoints.textContent = `Points totaux : ${data.total_points ?? 0}`;
+  if (profileQuizPoints) profileQuizPoints.textContent = `Questionnaires : ${data.quiz_points ?? 0}`;
+  if (profileMissionPoints) profileMissionPoints.textContent = `Missions : ${data.mission_points ?? 0}`;
+}
+
+async function loadProfileData() {
+  try {
+    const res = await fetch('/api/profile');
+    if (!res.ok) throw new Error('Impossible de charger le profil');
+    profileData = await res.json();
+    fillProfileForm(profileData);
+    updateProfileMetrics(profileData);
+    return profileData;
+  } catch (err) {
+    setProfileAlert(err.message);
+    return null;
+  }
 }
 
 function toggleProfileMenu(force) {
@@ -278,7 +303,9 @@ function setupProfileDrawer() {
       try {
         const updated = await postJson('/api/profile', payload);
         currentUser = updated;
+        profileData = { ...profileData, ...updated };
         fillProfileForm(updated);
+        updateProfileMetrics(profileData);
         updateStatus(updated, parseInt(statusProgress.textContent, 10) || 0);
         setProfileAlert('Profil mis à jour', false);
       } catch (err) {
@@ -314,8 +341,9 @@ function setupProfileMenu() {
   }
 
   if (menuProfileBtn) {
-    menuProfileBtn.addEventListener('click', (evt) => {
+    menuProfileBtn.addEventListener('click', async (evt) => {
       evt.stopPropagation();
+      await loadProfileData();
       showProfileDrawer();
     });
   }
@@ -722,6 +750,11 @@ async function refreshQuestionnaires() {
       const card = document.createElement('article');
       card.className = 'questionnaire-card';
       card.dataset.id = q.id;
+      const bestScore = q.user_result?.score ?? 0;
+      const bestMax = q.user_result?.max_score || q.total_points || q.questions?.reduce((acc, question) => acc + (question.points || 0), 0) || q.question_count;
+      const statusLabel = q.user_result
+        ? `Effectué · ${bestScore}/${bestMax || '?'} pts`
+        : 'Jamais fait';
       card.innerHTML = `
         <div class="questionnaire-card__icon">${ICON_EMOJIS[q.icon] || ICON_EMOJIS.default}</div>
         <div class="questionnaire-card__body">
@@ -731,6 +764,7 @@ async function refreshQuestionnaires() {
           <div class="chip-row questionnaire-card__footer">
             <span class="chip">${q.question_count || (q.questions ? q.questions.length : 0)} question(s)</span>
             <span class="chip">${new Date(q.created_at).toLocaleDateString()}</span>
+            <span class="chip ${q.user_result ? 'chip--success' : 'chip--ghost'}">${statusLabel}</span>
             ${currentUser?.role === 'admin' ? '<span class="admin-pill">Admin</span>' : ''}
             <button class="btn secondary play-questionnaire" data-id="${q.id}">Ouvrir</button>
             ${currentUser?.role === 'admin' ? `<button class="btn danger delete-questionnaire" data-id="${q.id}">Supprimer</button>` : ''}
@@ -786,13 +820,16 @@ function setupPlayerNavigation() {
   if (playerNext) {
     playerNext.addEventListener('click', () => {
       if (!playerState.questionnaire) return;
+      showAnswerFeedback();
       const total = playerState.questionnaire.questions.length;
-      if (playerState.index >= total - 1) {
-        showResult();
-        return;
-      }
-      playerState.index += 1;
-      renderPlayerQuestion();
+      setTimeout(() => {
+        if (playerState.index >= total - 1) {
+          showResult();
+          return;
+        }
+        playerState.index += 1;
+        renderPlayerQuestion();
+      }, 700);
     });
   }
 }
@@ -821,6 +858,27 @@ function updatePlayerProgress() {
   if (playerNext) playerNext.textContent = playerState.index === total - 1 ? 'Terminer' : 'Suivant';
 }
 
+function isAnswerCorrect(question, answer) {
+  if (question.type === 'text') return Boolean(answer && `${answer}`.trim());
+
+  if (question.type === 'multiple') {
+    const correctIds = (question.options || []).filter((opt) => opt.is_correct).map((opt) => `${opt.id}`);
+    const selected = Array.isArray(answer) ? answer.map((id) => `${id}`) : [];
+    if (!correctIds.length) return false;
+    if (correctIds.length !== selected.length) return false;
+    return correctIds.every((id) => selected.includes(id));
+  }
+
+  const correct = (question.options || []).find((opt) => opt.is_correct);
+  return correct ? `${answer}` === `${correct.id}` : false;
+}
+
+function getCorrectLabels(question) {
+  if (question.type === 'text') return 'Réponse libre attendue';
+  const labels = (question.options || []).filter((opt) => opt.is_correct).map((opt) => opt.label || '—');
+  return labels.length ? labels.join(', ') : 'Réponse attendue';
+}
+
 function renderStars(ratio) {
   if (!resultStars) return;
   const stars = 5;
@@ -839,16 +897,7 @@ function evaluateAnswers() {
 
   playerState.questionnaire.questions.forEach((question, idx) => {
     const answer = playerState.answers[idx];
-    if (!answer) return;
-    if (question.type === 'text') {
-      if (answer.trim()) playerState.score += question.points || 0;
-      return;
-    }
-
-    const correctOptions = (question.options || []).filter((o) => o.is_correct).map((o) => `${o.id}`);
-    const selected = Array.isArray(answer) ? answer.map((val) => `${val}`) : [`${answer}`];
-    const isCorrect = correctOptions.length === selected.length && correctOptions.every((id) => selected.includes(id));
-    if (isCorrect) playerState.score += question.points || 0;
+    if (isAnswerCorrect(question, answer)) playerState.score += question.points || 0;
   });
 }
 
@@ -863,6 +912,7 @@ function renderPlayerQuestion() {
     </div>
     <h4>${question.text}</h4>
     <div class="player-question__options"></div>
+    <div class="player-feedback hidden" id="player-feedback"></div>
   `;
 
   const optionsContainer = playerQuestion.querySelector('.player-question__options');
@@ -911,7 +961,50 @@ function renderPlayerQuestion() {
   updatePlayerProgress();
 }
 
-function showResult() {
+function showAnswerFeedback() {
+  if (!playerState.questionnaire) return { isCorrect: false };
+  const question = playerState.questionnaire.questions[playerState.index];
+  const answer = playerState.answers[playerState.index];
+  const options = playerQuestion?.querySelectorAll('.option-tile') || [];
+  const correctIds = (question.options || []).filter((opt) => opt.is_correct).map((opt) => `${opt.id}`);
+
+  options.forEach((wrapper) => {
+    wrapper.classList.remove('option-tile--correct', 'option-tile--wrong');
+    const input = wrapper.querySelector('input');
+    if (!input) return;
+    const id = `${input.value}`;
+    if (correctIds.includes(id)) wrapper.classList.add('option-tile--correct');
+    if (input.checked && !correctIds.includes(id)) wrapper.classList.add('option-tile--wrong');
+  });
+
+  const isCorrect = isAnswerCorrect(question, answer);
+  const feedback = qs('#player-feedback');
+  if (feedback) {
+    feedback.classList.remove('hidden');
+    feedback.classList.toggle('player-feedback--success', isCorrect);
+    feedback.classList.toggle('player-feedback--error', !isCorrect);
+    feedback.textContent = isCorrect
+      ? 'Bonne réponse !'
+      : `Réponse attendue : ${getCorrectLabels(question)}`;
+  }
+  return { isCorrect };
+}
+
+async function persistQuestionnaireResult() {
+  if (!playerState.questionnaire) return;
+  try {
+    await postJson(`/api/questionnaires/${playerState.questionnaire.id}/result`, {
+      score: playerState.score,
+      max_score: playerState.totalPoints,
+    });
+    await refreshQuestionnaires();
+    await loadProfileData();
+  } catch (err) {
+    console.error('Impossible de sauvegarder le score', err);
+  }
+}
+
+async function showResult() {
   evaluateAnswers();
   const ratio = playerState.totalPoints ? playerState.score / playerState.totalPoints : 0;
   renderStars(ratio);
@@ -919,6 +1012,7 @@ function showResult() {
   if (resultDetail) resultDetail.textContent = `Score ${playerState.score} / ${playerState.totalPoints} points.`;
   if (playerResult) playerResult.classList.remove('hidden');
   updatePlayerProgress();
+  await persistQuestionnaireResult();
 }
 
 function openPlayer(questionnaire) {
@@ -966,6 +1060,7 @@ async function init() {
   setupSimulator();
   initQuestionnaireWizard();
   await refreshMenu();
+  await loadProfileData();
   await refreshQuestionnaires();
   setupQuestionnaireActions();
   setupPlayerNavigation();
