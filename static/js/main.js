@@ -8,6 +8,18 @@ const statusTitle = qs('#status-title');
 const statusSub = qs('#status-sub');
 const statusUser = qs('#status-user');
 const statusProgress = qs('#status-progress');
+const profileBtn = qs('#profile-btn');
+const profileDrawer = qs('#profile-drawer');
+const closeProfile = qs('#close-profile');
+const profileForm = qs('#profile-form');
+const profileUsername = qs('#profile-username');
+const profileEmail = qs('#profile-email');
+const profilePassword = qs('#profile-password');
+const profileAvatarValue = qs('#profile-avatar-value');
+const profileAvatar = qs('#profile-avatar');
+const profileAlert = qs('#profile-alert');
+const avatarChips = qsa('#profile-avatars .avatar-chip');
+let currentUser = null;
 const logPanel = qs('#log-panel');
 
 function clearAuthState() {
@@ -25,11 +37,17 @@ function clearAlert() {
   if (appAlert) appAlert.classList.add('hidden');
 }
 
+function applyAvatar(target, avatar) {
+  if (!target) return;
+  target.classList.remove('avatar--alpha', 'avatar--bravo', 'avatar--charlie', 'avatar--delta');
+  target.classList.add(`avatar--${avatar || 'alpha'}`);
+}
+
 function updateStatus(user, progressCount) {
   if (user) {
     statusTitle.textContent = 'Connecté';
     statusSub.textContent = 'Votre session est synchronisée avec la base de données.';
-    statusUser.textContent = user;
+    statusUser.textContent = user.username;
     statusProgress.textContent = `${progressCount} mission(s)`;
   } else {
     statusTitle.textContent = 'Non connecté';
@@ -50,6 +68,48 @@ async function postJson(url, payload) {
     throw new Error(data.error || 'Erreur serveur');
   }
   return res.json();
+}
+
+function showProfileDrawer() {
+  profileDrawer?.classList.remove('hidden');
+}
+
+function hideProfileDrawer() {
+  profileDrawer?.classList.add('hidden');
+  if (profilePassword) profilePassword.value = '';
+}
+
+function fillProfileForm(user) {
+  if (!user) return;
+  if (profileUsername) profileUsername.value = user.username || '';
+  if (profileEmail) profileEmail.value = user.email || '';
+  if (profileAvatarValue) profileAvatarValue.value = user.avatar || 'alpha';
+  avatarChips.forEach((chip) => {
+    chip.classList.toggle('active', chip.dataset.avatar === profileAvatarValue.value);
+  });
+  applyAvatar(profileAvatar, user.avatar);
+}
+
+function setupProfileChips() {
+  avatarChips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      avatarChips.forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      if (profileAvatarValue) profileAvatarValue.value = chip.dataset.avatar;
+      applyAvatar(profileAvatar, chip.dataset.avatar);
+    });
+  });
+}
+
+function setProfileAlert(message, isError = true) {
+  if (!profileAlert) return;
+  profileAlert.textContent = message;
+  profileAlert.classList.remove('hidden');
+  profileAlert.style.background = isError ? 'rgba(255,63,171,0.12)' : 'rgba(58,242,255,0.15)';
+}
+
+function clearProfileAlert() {
+  if (profileAlert) profileAlert.classList.add('hidden');
 }
 
 function renderLevel(level) {
@@ -88,7 +148,9 @@ async function refreshMenu() {
   const data = await res.json();
   levelMenu.innerHTML = '';
   data.levels.forEach((lvl) => levelMenu.appendChild(renderLevel(lvl)));
-  updateStatus(data.user, data.levels.filter((l) => l.progress).length);
+  currentUser = data.user;
+  updateStatus(currentUser, data.levels.filter((l) => l.progress).length);
+  fillProfileForm(currentUser);
 }
 
 function setupLogout() {
@@ -101,6 +163,30 @@ function setupLogout() {
       setAlert(err.message);
     }
   });
+}
+
+function setupProfileDrawer() {
+  if (profileBtn) profileBtn.addEventListener('click', showProfileDrawer);
+  if (closeProfile) closeProfile.addEventListener('click', hideProfileDrawer);
+
+  if (profileForm) {
+    profileForm.addEventListener('submit', async (evt) => {
+      evt.preventDefault();
+      clearProfileAlert();
+      const payload = Object.fromEntries(new FormData(profileForm));
+      if (!payload.password) delete payload.password;
+
+      try {
+        const updated = await postJson('/api/profile', payload);
+        currentUser = updated;
+        fillProfileForm(updated);
+        updateStatus(updated, parseInt(statusProgress.textContent, 10) || 0);
+        setProfileAlert('Profil mis à jour', false);
+      } catch (err) {
+        setProfileAlert(err.message);
+      }
+    });
+  }
 }
 
 function setupMenuActions() {
@@ -140,6 +226,8 @@ function setupSimulator() {
 async function init() {
   setupLogout();
   setupMenuActions();
+  setupProfileChips();
+  setupProfileDrawer();
   setupSimulator();
   await refreshMenu();
   log('Interface initialisée avec GSAP et Flask.');

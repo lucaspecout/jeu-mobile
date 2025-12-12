@@ -41,6 +41,18 @@ function setupTabs() {
   });
 }
 
+function setupAvatarPicker() {
+  const chips = qsa('.avatar-chip');
+  const hidden = qs('#avatar-choice');
+  chips.forEach((chip) => {
+    chip.addEventListener('click', () => {
+      chips.forEach((c) => c.classList.remove('active'));
+      chip.classList.add('active');
+      if (hidden) hidden.value = chip.dataset.avatar;
+    });
+  });
+}
+
 function persistAuthState() {
   localStorage.setItem('isAuthenticated', 'true');
 }
@@ -105,6 +117,7 @@ function playSplashThenInit() {
 
 async function init() {
   setupTabs();
+  setupAvatarPicker();
   handleAuth('#login-form', '/api/login');
   handleAuth('#register-form', '/api/register');
   await ensureLoggedOut();
