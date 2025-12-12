@@ -22,10 +22,18 @@
       <div class="grid-bg" aria-hidden="true"></div>
       <div class="scanline" aria-hidden="true"></div>
       <div class="topbar">
+        <nav class="topbar__nav" aria-label="Navigation principale">
+          <a class="topbar__link" href="#accueil">Accueil</a>
+          <a class="topbar__link" href="#missions">Missions</a>
+          <a class="topbar__link" href="#mini-game">Petit jeu</a>
+          <a class="topbar__link" href="#questionnaire">Questionnaire</a>
+        </nav>
         <div class="topbar__spacer"></div>
         <div class="profile-menu" id="profile-menu-root">
           <button class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
             <span class="avatar" id="profile-avatar"></span>
+            <span class="profile-btn__label">Mon compte</span>
+            <span class="profile-btn__chevron" aria-hidden="true">▾</span>
           </button>
           <div class="profile-menu__dropdown hidden" id="profile-menu">
             <div class="profile-menu__user">
@@ -35,12 +43,15 @@
                 <p class="menu-email" id="menu-email">—</p>
               </div>
             </div>
-            <button class="menu-item" id="menu-profile">Modifier mes informations</button>
+            <button class="menu-item menu-item--primary" id="menu-profile">
+              <span class="menu-item__icon">✏️</span>
+              <span>Modifier mon compte</span>
+            </button>
             <button class="menu-item danger" id="menu-logout">Déconnexion</button>
           </div>
         </div>
       </div>
-      <header class="hero">
+      <header class="hero" id="accueil">
         <div class="hero__content">
           <p class="hero__eyebrow">Matrice PSE</p>
           <h1>Protec Rescue 38</h1>
@@ -103,7 +114,95 @@
           </div>
         </section>
 
-        <section class="panel">
+        <section class="panel" aria-label="Tableau de bord opérations">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Accueil</p>
+              <h2>Résumé des opérations</h2>
+              <p class="muted">Vue synthétique : missions terminées, secouristes présents et trophées obtenus.</p>
+            </div>
+            <span class="chip chip--pulse">{{ dashboard_stats.trophies_unlocked }} / {{ dashboard_stats.trophies|length }} trophées</span>
+          </div>
+          <div class="stat-grid">
+            <div class="stat-card">
+              <p class="label">Missions effectuées</p>
+              <p class="stat-card__value">{{ dashboard_stats.missions_completed }}</p>
+              <p class="muted">Total des missions lancées par l'équipe.</p>
+            </div>
+            <div class="stat-card">
+              <p class="label">Secouristes inscrits</p>
+              <p class="stat-card__value">{{ dashboard_stats.total_rescuers }}</p>
+              <p class="muted">Effectif synchronisé et prêt.</p>
+            </div>
+            <div class="stat-card stat-card--accent">
+              <p class="label">Trophées gagnés</p>
+              <p class="stat-card__value">{{ dashboard_stats.trophies_unlocked }}</p>
+              <p class="muted">Récompenses débloquées par l'équipe.</p>
+            </div>
+          </div>
+
+          <div class="dual-grid">
+            <div class="card card--glass">
+              <div class="panel__header">
+                <div>
+                  <p class="eyebrow">Classement</p>
+                  <h3>Scores des participants</h3>
+                  <p class="muted">Suivi du cumul de points et des missions par secouriste.</p>
+                </div>
+              </div>
+              <div class="table-wrapper">
+                <table class="scoreboard">
+                  <thead>
+                    <tr>
+                      <th>Profil</th>
+                      <th>Missions</th>
+                      <th>Score</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for entry in dashboard_stats.leaderboard %}
+                    <tr>
+                      <td class="scoreboard__user">
+                        <span class="avatar avatar--{{ entry.avatar }}"></span>
+                        <span>{{ entry.username }}</span>
+                      </td>
+                      <td>{{ entry.missions }}</td>
+                      <td>{{ entry.score }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                      <td colspan="3" class="muted">Aucun participant enregistré pour le moment.</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="card card--glass">
+              <div class="panel__header">
+                <div>
+                  <p class="eyebrow">Trophées</p>
+                  <h3>Récompenses gagnées</h3>
+                  <p class="muted">Progression des exploits débloqués.</p>
+                </div>
+              </div>
+              <div class="trophy-grid">
+                {% for trophy in dashboard_stats.trophies %}
+                <div class="trophy {{ 'trophy--active' if trophy.earned else '' }}">
+                  <div class="trophy__icon">{{ trophy.icon }}</div>
+                  <div>
+                    <p class="trophy__title">{{ trophy.title }}</p>
+                    <p class="muted">{{ trophy.description }}</p>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel" id="missions">
           <div class="panel__header">
             <div>
               <p class="eyebrow">Hangar des missions</p>
@@ -132,6 +231,30 @@
             <div class="pulse-line" id="pulse-line"></div>
             <div class="logs" id="log-panel"></div>
           </div>
+        </section>
+
+        <section class="panel" id="mini-game">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Petit jeu</p>
+              <h2>Réflexes de secours</h2>
+              <p class="muted">Active un mini-jeu thématique pour entraîner la réactivité de l'équipe.</p>
+            </div>
+            <button class="btn secondary">Lancer le module</button>
+          </div>
+          <p class="muted">Ce module interactif affiche les alertes et scénarios courts pour tester les automatismes.</p>
+        </section>
+
+        <section class="panel panel--frost" id="questionnaire">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Questionnaire</p>
+              <h2>Retour d'expérience</h2>
+              <p class="muted">Un formulaire rapide pour collecter les retours des secouristes après chaque mission.</p>
+            </div>
+            <button class="btn ghost">Ouvrir le questionnaire</button>
+          </div>
+          <p class="muted">Les réponses alimentent les statistiques ci-dessus pour suivre l'amélioration continue.</p>
         </section>
       </main>
     </div>
