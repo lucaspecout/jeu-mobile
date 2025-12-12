@@ -18,15 +18,16 @@
         <p class="splash__tagline">Synchronisation des modules avant ouverture du cockpit.</p>
       </div>
     </div>
+    {% set page = current_page or 'home' %}
     <div id="app-shell" class="app-shell hidden">
       <div class="grid-bg" aria-hidden="true"></div>
       <div class="scanline" aria-hidden="true"></div>
       <div class="topbar">
         <nav class="topbar__nav" aria-label="Navigation principale">
-          <a class="topbar__link" href="#accueil">Accueil</a>
-          <a class="topbar__link" href="#missions">Missions</a>
-          <a class="topbar__link" href="#mini-game">Petit jeu</a>
-          <a class="topbar__link" href="#questionnaire">Questionnaire</a>
+          <a class="topbar__link {{ 'topbar__link--active' if page == 'home' else '' }}" href="{{ url_for('home') }}">Accueil</a>
+          <a class="topbar__link {{ 'topbar__link--active' if page == 'missions' else '' }}" href="{{ url_for('missions_page') }}">Missions</a>
+          <a class="topbar__link {{ 'topbar__link--active' if page == 'mini-game' else '' }}" href="{{ url_for('mini_game_page') }}">Petit jeu</a>
+          <a class="topbar__link {{ 'topbar__link--active' if page == 'questionnaire' else '' }}" href="{{ url_for('questionnaire_page') }}">Questionnaire</a>
         </nav>
         <div class="topbar__spacer"></div>
         <div class="profile-menu" id="profile-menu-root">
@@ -53,14 +54,23 @@
       </div>
       <header class="hero" id="accueil">
         <div class="hero__content">
-          <p class="hero__eyebrow">Matrice PSE</p>
+          {% if page == 'missions' %}
+          <p class="hero__eyebrow">Hangar</p>
+          <h1>Tableau des missions</h1>
+          <p class="hero__tagline">Accède au hangar, choisis un objectif et suis ta progression.</p>
+          {% elif page == 'mini-game' %}
+          <p class="hero__eyebrow">Réflexes</p>
+          <h1>Petit jeu dédié</h1>
+          <p class="hero__tagline">Déclenche une simulation rapide pour garder les automatismes actifs.</p>
+          {% elif page == 'questionnaire' %}
+          <p class="hero__eyebrow">Retour</p>
+          <h1>Zone questionnaire</h1>
+          <p class="hero__tagline">Ouvre le formulaire et collecte les retours de mission.</p>
+          {% else %}
+          <p class="hero__eyebrow">Centre</p>
           <h1>Protec Rescue 38</h1>
-          <p class="hero__tagline">Passage en mode serveur : authentification sécurisée, missions persistantes et menus façon cockpit.</p>
-          <div class="hero__badges">
-            <span class="chip">Flask + SQL</span>
-            <span class="chip">Animations néon</span>
-            <span class="chip">Menu dynamique</span>
-          </div>
+          <p class="hero__tagline">Cockpit unifié pour suivre le profil, les stats et les modules d'entraînement.</p>
+          {% endif %}
         </div>
         <div class="hero__hologram">
           <div class="holo holo--ring"></div>
@@ -80,7 +90,7 @@
             <div>
               <p class="eyebrow">Identité</p>
               <h2>Profil connecté</h2>
-              <p class="muted">Votre session est active. Le cockpit des missions reste séparé de l'écran d'authentification.</p>
+              <p class="muted">Votre session est active et synchronisée. Naviguez via la barre supérieure pour ouvrir chaque module.</p>
             </div>
           </div>
           <div class="auth-grid">
@@ -107,13 +117,14 @@
 
             <div class="card card--glass">
               <p class="eyebrow">Navigation</p>
-              <h3>Authentification isolée</h3>
-              <p class="muted">L'écran de connexion / création de compte est désormais séparé. Utilisez le raccourci ci-dessous si vous devez changer d'utilisateur.</p>
-              <a class="btn secondary" href="/auth">Aller à la page de connexion</a>
+              <h3>Modules dédiés</h3>
+              <p class="muted">Chaque bouton du haut ouvre une page dédiée : missions, mini-jeu ou questionnaire.</p>
+              <p class="muted">Le bouton actif reste en surbrillance pour savoir où vous vous trouvez.</p>
             </div>
           </div>
         </section>
 
+        {% if page == 'home' %}
         <section class="panel" aria-label="Tableau de bord opérations">
           <div class="panel__header">
             <div>
@@ -202,20 +213,6 @@
           </div>
         </section>
 
-        <section class="panel" id="missions">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Hangar des missions</p>
-              <h2>Menu principal</h2>
-              <p class="muted">Choisissez une mission PSE, consultez la difficulté et lancez la progression.</p>
-            </div>
-            <div class="panel__actions">
-              <span class="chip chip--pulse">Synchronisé base</span>
-            </div>
-          </div>
-          <div class="menu-grid" id="level-menu"></div>
-        </section>
-
         <section class="panel panel--frost">
           <div class="panel__header">
             <div>
@@ -232,7 +229,21 @@
             <div class="logs" id="log-panel"></div>
           </div>
         </section>
-
+        {% elif page == 'missions' %}
+        <section class="panel" id="missions">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Hangar des missions</p>
+              <h2>Menu principal</h2>
+              <p class="muted">Choisissez une mission PSE, consultez la difficulté et lancez la progression.</p>
+            </div>
+            <div class="panel__actions">
+              <span class="chip chip--pulse">Synchronisé base</span>
+            </div>
+          </div>
+          <div class="menu-grid" id="level-menu"></div>
+        </section>
+        {% elif page == 'mini-game' %}
         <section class="panel" id="mini-game">
           <div class="panel__header">
             <div>
@@ -244,7 +255,7 @@
           </div>
           <p class="muted">Ce module interactif affiche les alertes et scénarios courts pour tester les automatismes.</p>
         </section>
-
+        {% elif page == 'questionnaire' %}
         <section class="panel panel--frost" id="questionnaire">
           <div class="panel__header">
             <div>
@@ -256,6 +267,7 @@
           </div>
           <p class="muted">Les réponses alimentent les statistiques ci-dessus pour suivre l'amélioration continue.</p>
         </section>
+        {% endif %}
       </main>
     </div>
 

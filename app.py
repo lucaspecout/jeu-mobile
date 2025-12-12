@@ -155,11 +155,7 @@ def current_user():
 
 
 def register_routes(app: Flask) -> None:
-    @app.route("/")
-    def home():
-        user = current_user()
-        if not user:
-            return redirect(url_for("auth"))
+    def build_dashboard_context(user: User):
         progress_map = {p.level_id: serialize_progress(p) for p in (user.progress if user else [])}
         levels = [serialize_level(level, progress_map.get(level.id)) for level in Level.query.all()]
 
@@ -214,7 +210,31 @@ def register_routes(app: Flask) -> None:
             "trophies": trophies,
             "trophies_unlocked": sum(1 for trophy in trophies if trophy["earned"]),
         }
-        return render_template("index.html", levels=levels, user=user, dashboard_stats=dashboard_stats)
+        return {"levels": levels, "user": user, "dashboard_stats": dashboard_stats}
+
+    def render_shell(page: str):
+        user = current_user()
+        if not user:
+            return redirect(url_for("auth"))
+        context = build_dashboard_context(user)
+        context["current_page"] = page
+        return render_template("index.html", **context)
+
+    @app.route("/")
+    def home():
+        return render_shell("home")
+
+    @app.route("/missions")
+    def missions_page():
+        return render_shell("missions")
+
+    @app.route("/mini-game")
+    def mini_game_page():
+        return render_shell("mini-game")
+
+    @app.route("/questionnaire")
+    def questionnaire_page():
+        return render_shell("questionnaire")
 
     @app.route("/auth")
     def auth():
