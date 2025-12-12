@@ -446,18 +446,42 @@ def register_routes(app: Flask) -> None:
 
     @app.route("/api/admin/users/<int:user_id>", methods=["PUT"])
     def api_admin_update_user(user_id: int):
-        _, error = ensure_admin_access()
+        admin_user, error = ensure_admin_access()
         if error:
             return error
         data = request.get_json() or {}
         role = (data.get("role") or "").lower()
-        if role not in USER_ROLES:
+        password = data.get("password")
+
+        if not role and not password:
+            return jsonify({"error": "Aucune modification fournie"}), 400
+
+        if role and role not in USER_ROLES:
             return jsonify({"error": "Rôle invalide"}), 400
 
         user = User.query.get_or_404(user_id)
-        user.role = role
+        if role:
+            user.role = role
+        if password:
+            if len(password) < 8:
+                return jsonify({"error": "Le mot de passe doit contenir au moins 8 caractères"}), 400
+            user.password_hash = generate_password_hash(password)
         db.session.commit()
         return jsonify(serialize_user_admin(user))
+
+    @app.route("/api/admin/users/<int:user_id>", methods=["DELETE"])
+    def api_admin_delete_user(user_id: int):
+        admin_user, error = ensure_admin_access()
+        if error:
+            return error
+
+        user = User.query.get_or_404(user_id)
+        if admin_user.id == user.id:
+            return jsonify({"error": "Impossible de supprimer votre propre compte"}), 400
+
+        db.session.delete(user)
+        db.session.commit()
+        return jsonify({"ok": True})
 
 
 app = create_app()
