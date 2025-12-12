@@ -353,6 +353,17 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         return jsonify(serialize_user(user))
 
+    @app.route("/api/profile", methods=["DELETE"])
+    def api_profile_delete():
+        user = current_user()
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
+
+        db.session.delete(user)
+        db.session.commit()
+        session.pop("user_id", None)
+        return jsonify({"ok": True})
+
 
 app = create_app()
 
