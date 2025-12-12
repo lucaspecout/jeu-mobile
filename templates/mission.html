@@ -12,32 +12,108 @@
   <body>
     <div class="grid-bg" aria-hidden="true"></div>
     <div class="scanline" aria-hidden="true"></div>
-    <main class="shell" style="max-width: 720px; margin: 3rem auto;">
-      <header class="panel__header" style="margin-bottom: 1rem;">
+    <main class="shell" style="max-width: 980px; margin: 2.5rem auto;">
+      <header class="panel__header" style="margin-bottom: 1.2rem;">
         <div>
-          <p class="eyebrow">Mission</p>
+          <p class="eyebrow">Mission opérationnelle</p>
           <h1>{{ level.name }}</h1>
-          <p class="muted">{{ level.description }}</p>
+          <p class="muted">Parcours ludique qui respecte les séquences PSE1 / PSE2 et récompense chaque bonne action.</p>
         </div>
-        <span class="chip chip--pulse">{{ level.difficulty|upper }}</span>
+        <div class="chip-group">
+          <span class="chip chip--pulse">{{ level.difficulty|upper }}</span>
+          <a class="btn secondary" href="{{ url_for('missions_page') }}">↩ Retour au hangar</a>
+        </div>
       </header>
+
+      <section class="panel panel--frost mission-hero">
+        <div>
+          <p class="eyebrow">Brief</p>
+          <h2>Scénario</h2>
+          <p class="muted">Vous arrivez sur une place de marché. Un adulte est au sol après une chute, le flux est dense et la météo est humide.</p>
+          <div class="chip-row">
+            <span class="chip">PSE1 : protection, bilan vital, alerte</span>
+            <span class="chip">PSE2 : oxygénothérapie, immobilisation, coordination</span>
+          </div>
+          <div class="mission-meta">
+            <div class="meta-card">
+              <p class="label">État</p>
+              <p class="meta-value" id="mission-status">{{ progress.status.replace('_', ' ') if progress else 'non commencée' }}</p>
+            </div>
+            <div class="meta-card">
+              <p class="label">Score enregistré</p>
+              <p class="meta-value" id="mission-score">{{ progress.score if progress else 0 }} pts</p>
+            </div>
+            <div class="meta-card">
+              <p class="label">Badge</p>
+              <p class="meta-value">{{ avatar_emojis.get(progress.user.avatar if progress and progress.user else 'alpha', '🛰️') }}</p>
+            </div>
+          </div>
+          <div class="cta-row">
+            <button class="btn primary" id="launch-mission">Lancer la mission</button>
+            <button class="btn ghost" id="reset-mission">Rejouer</button>
+          </div>
+        </div>
+        <div class="mission-progress">
+          <p class="label">Progression</p>
+          <div class="progress neon" aria-live="polite">
+            <div class="progress__bar" id="mission-progress-bar"></div>
+          </div>
+          <div class="progress__labels">
+            <span id="progress-label">0 / 100 pts</span>
+            <span id="phase-label">Phase : Brief</span>
+          </div>
+          <div class="timeline" id="pulse-timeline"></div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel__header">
+          <div>
+            <p class="eyebrow">Déroulé</p>
+            <h2>Phases PSE1 & PSE2</h2>
+            <p class="muted">Coche les actions validées pour débloquer les points et avancer dans la mission.</p>
+          </div>
+          <span class="chip chip--ghost" id="phase-chip">Brief</span>
+        </div>
+        <div class="mission-grid" id="mission-grid"></div>
+      </section>
 
       <section class="panel panel--frost">
         <div class="panel__header">
           <div>
-            <p class="eyebrow">Session active</p>
-            <h2>Brief opérationnel</h2>
-            <p class="muted">Vous êtes redirigé sur une page dédiée pour suivre la mission sélectionnée.</p>
+            <p class="eyebrow">Synthèse</p>
+            <h2>Feedback dynamique</h2>
+            <p class="muted">Suivi du score, gestes critiques et validation finale.</p>
           </div>
-          <a class="btn secondary" href="{{ url_for('missions_page') }}">↩ Retour au hangar</a>
+          <span class="chip" id="summary-chip">Score en attente</span>
         </div>
-        <div class="card card--glass" style="margin-top: 1rem;">
-          <p class="label">État</p>
-          <p class="muted">{{ progress.status.replace('_', ' ') if progress else 'en cours' }}</p>
-          <p class="label" style="margin-top: 1rem;">Score actuel</p>
-          <p class="muted">{{ progress.score if progress else 0 }} pts</p>
+        <div class="summary-cards" id="summary-cards">
+          <div class="card card--glass">
+            <p class="label">Points cumulés</p>
+            <h3 id="summary-score">0 pts</h3>
+            <p class="muted">Chaque action validée ajoute des points et illumine le tableau.</p>
+          </div>
+          <div class="card card--glass">
+            <p class="label">Gestes prioritaires</p>
+            <ul class="summary__list" id="priority-list"></ul>
+          </div>
+          <div class="card card--glass">
+            <p class="label">Validation</p>
+            <p class="muted" id="validation-text">Lance la mission puis complète chaque phase pour obtenir le badge « terrain ».</p>
+          </div>
         </div>
       </section>
     </main>
+
+    <script>
+      window.MISSION_CONTEXT = {
+        levelId: {{ level.id }},
+        slug: {{ level.slug|tojson }},
+        savedScore: {{ progress.score if progress else 0 }},
+        status: {{ progress.status|tojson if progress else '"non_commence"' }}
+      };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/mission.js') }}"></script>
   </body>
 </html>
