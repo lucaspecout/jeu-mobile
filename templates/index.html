@@ -1,535 +1,559 @@
 <!doctype html>
 <html lang="fr">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Protec Rescue 38 - Centre de commande</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
-  </head>
-  <body>
-    <div id="splash" class="splash">
-      <div class="splash__glow"></div>
-      <div class="splash__content">
-        <p class="splash__eyebrow">Chargement du hub</p>
-        <div class="splash__title" id="splash-title">Protec Rescue 38</div>
-        <p class="splash__tagline">Synchronisation des modules avant ouverture du cockpit.</p>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Protec Rescue 38 - Centre de commande</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+
+<body>
+  <div id="splash" class="splash">
+    <div class="splash__glow"></div>
+    <div class="splash__content">
+      <p class="splash__eyebrow">Chargement du hub</p>
+      <div class="splash__title" id="splash-title">Protec Rescue 38</div>
+      <p class="splash__tagline">Synchronisation des modules avant ouverture du cockpit.</p>
+    </div>
+  </div>
+  {% set page = current_page or 'home' %}
+  <div id="app-shell" class="app-shell hidden">
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="scanline" aria-hidden="true"></div>
+    <div class="topbar">
+      <button class="topbar__toggle" id="topbar-toggle" aria-expanded="false" aria-controls="topbar-nav">
+        <span class="topbar__toggle-icon" aria-hidden="true">☰</span>
+        <span class="sr-only">Ouvrir le menu</span>
+      </button>
+      <nav class="topbar__nav" id="topbar-nav" aria-label="Navigation principale">
+        <a class="topbar__link {{ 'topbar__link--active' if page == 'home' else '' }}"
+          href="{{ url_for('home') }}">Accueil</a>
+        <a class="topbar__link {{ 'topbar__link--active' if page == 'missions' else '' }}"
+          href="{{ url_for('missions_page') }}">Missions</a>
+        <a class="topbar__link {{ 'topbar__link--active' if page == 'mini-game' else '' }}"
+          href="{{ url_for('mini_game_page') }}">Petit jeu</a>
+        <a class="topbar__link {{ 'topbar__link--active' if page == 'questionnaire' else '' }}"
+          href="{{ url_for('questionnaire_page') }}">Questionnaire</a>
+        {% if user.role == 'admin' %}
+        <a class="topbar__link {{ 'topbar__link--active' if page == 'admin' else '' }}"
+          href="{{ url_for('admin_page') }}">Admin</a>
+        {% endif %}
+      </nav>
+      <div class="topbar__spacer"></div>
+      <div class="profile-menu" id="profile-menu-root">
+        <button class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
+          <span class="avatar" id="profile-avatar" data-avatar="{{ user.avatar if user else 'alpha' }}">{{
+            avatar_emojis.get(user.avatar if user else 'alpha', '🛰️') }}</span>
+          <span class="profile-btn__label">Mon compte</span>
+          <span class="profile-btn__chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="profile-menu__dropdown hidden" id="profile-menu">
+          <div class="profile-menu__user">
+            <span class="avatar" id="menu-avatar" data-avatar="{{ user.avatar if user else 'alpha' }}">{{
+              avatar_emojis.get(user.avatar if user else 'alpha', '🛰️') }}</span>
+            <div>
+              <p class="menu-username" id="menu-username">—</p>
+              <p class="menu-email" id="menu-email">—</p>
+            </div>
+          </div>
+          <button class="menu-item menu-item--primary" id="menu-profile">
+            <span class="menu-item__icon">✏️</span>
+            <span>Modifier mon compte</span>
+          </button>
+          <button class="menu-item danger" id="menu-logout">Déconnexion</button>
+        </div>
       </div>
     </div>
-    {% set page = current_page or 'home' %}
-    <div id="app-shell" class="app-shell hidden">
-      <div class="grid-bg" aria-hidden="true"></div>
-      <div class="scanline" aria-hidden="true"></div>
-      <div class="topbar">
-        <button class="topbar__toggle" id="topbar-toggle" aria-expanded="false" aria-controls="topbar-nav">
-          <span class="topbar__toggle-icon" aria-hidden="true">☰</span>
-          <span class="sr-only">Ouvrir le menu</span>
-        </button>
-        <nav class="topbar__nav" id="topbar-nav" aria-label="Navigation principale">
-          <a class="topbar__link {{ 'topbar__link--active' if page == 'home' else '' }}" href="{{ url_for('home') }}">Accueil</a>
-          <a class="topbar__link {{ 'topbar__link--active' if page == 'missions' else '' }}" href="{{ url_for('missions_page') }}">Missions</a>
-          <a class="topbar__link {{ 'topbar__link--active' if page == 'mini-game' else '' }}" href="{{ url_for('mini_game_page') }}">Petit jeu</a>
-          <a class="topbar__link {{ 'topbar__link--active' if page == 'questionnaire' else '' }}" href="{{ url_for('questionnaire_page') }}">Questionnaire</a>
-          {% if user.role == 'admin' %}
-          <a class="topbar__link {{ 'topbar__link--active' if page == 'admin' else '' }}" href="{{ url_for('admin_page') }}">Admin</a>
-          {% endif %}
-        </nav>
-        <div class="topbar__spacer"></div>
-        <div class="profile-menu" id="profile-menu-root">
-          <button class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
-            <span class="avatar" id="profile-avatar" data-avatar="{{ user.avatar if user else 'alpha' }}">{{ avatar_emojis.get(user.avatar if user else 'alpha', '🛰️') }}</span>
-            <span class="profile-btn__label">Mon compte</span>
-            <span class="profile-btn__chevron" aria-hidden="true">▾</span>
-          </button>
-          <div class="profile-menu__dropdown hidden" id="profile-menu">
-            <div class="profile-menu__user">
-              <span class="avatar" id="menu-avatar" data-avatar="{{ user.avatar if user else 'alpha' }}">{{ avatar_emojis.get(user.avatar if user else 'alpha', '🛰️') }}</span>
-              <div>
-                <p class="menu-username" id="menu-username">—</p>
-                <p class="menu-email" id="menu-email">—</p>
-              </div>
-            </div>
-            <button class="menu-item menu-item--primary" id="menu-profile">
-              <span class="menu-item__icon">✏️</span>
-              <span>Modifier mon compte</span>
-            </button>
-            <button class="menu-item danger" id="menu-logout">Déconnexion</button>
-          </div>
+    <header class="hero" id="accueil">
+      <div class="hero__content">
+        {% if page == 'missions' %}
+        <p class="hero__eyebrow">Hangar</p>
+        <h1>Tableau des missions</h1>
+        <p class="hero__tagline">Accède au hangar, choisis un objectif et suis ta progression.</p>
+        {% elif page == 'mini-game' %}
+        <p class="hero__eyebrow">Réflexes</p>
+        <h1>Petit jeu dédié</h1>
+        <p class="hero__tagline">Déclenche une simulation rapide pour garder les automatismes actifs.</p>
+        {% elif page == 'questionnaire' %}
+        <p class="hero__eyebrow">Retour</p>
+        <h1>Zone questionnaire</h1>
+        <p class="hero__tagline">Ouvre le formulaire et collecte les retours de mission.</p>
+        {% elif page == 'admin' %}
+        <p class="hero__eyebrow">Administration</p>
+        <h1>Console Protec</h1>
+        <p class="hero__tagline">Gestion des rôles, création de formateurs et contrôle des accès.</p>
+        {% else %}
+        <p class="hero__eyebrow">Centre</p>
+        <h1>Protec Rescue 38</h1>
+        <p class="hero__tagline">Cockpit unifié pour suivre le profil, les stats et les modules d'entraînement.</p>
+        {% endif %}
+      </div>
+      <div class="hero__hologram">
+        <div class="holo holo--ring"></div>
+        <div class="holo holo--orb"></div>
+        <div class="holo holo--grid"></div>
+        <div class="holo__labels">
+          <span>Centre d'alerte</span>
+          <span>Flux vital</span>
+          <span>Connectivité</span>
         </div>
       </div>
-      <header class="hero" id="accueil">
-        <div class="hero__content">
-          {% if page == 'missions' %}
-          <p class="hero__eyebrow">Hangar</p>
-          <h1>Tableau des missions</h1>
-          <p class="hero__tagline">Accède au hangar, choisis un objectif et suis ta progression.</p>
-          {% elif page == 'mini-game' %}
-          <p class="hero__eyebrow">Réflexes</p>
-          <h1>Petit jeu dédié</h1>
-          <p class="hero__tagline">Déclenche une simulation rapide pour garder les automatismes actifs.</p>
-          {% elif page == 'questionnaire' %}
-          <p class="hero__eyebrow">Retour</p>
-          <h1>Zone questionnaire</h1>
-          <p class="hero__tagline">Ouvre le formulaire et collecte les retours de mission.</p>
-          {% elif page == 'admin' %}
-          <p class="hero__eyebrow">Administration</p>
-          <h1>Console Protec</h1>
-          <p class="hero__tagline">Gestion des rôles, création de formateurs et contrôle des accès.</p>
-          {% else %}
-          <p class="hero__eyebrow">Centre</p>
-          <h1>Protec Rescue 38</h1>
-          <p class="hero__tagline">Cockpit unifié pour suivre le profil, les stats et les modules d'entraînement.</p>
-          {% endif %}
+    </header>
+
+    <main class="shell">
+      {% if page == 'home' %}
+      <section class="panel" aria-label="Tableau de bord opérations">
+        <div class="panel__header">
+          <div>
+            <p class="eyebrow">Accueil</p>
+            <h2>Résumé des opérations</h2>
+            <p class="muted">Vue synthétique : missions terminées, secouristes présents et trophées obtenus.</p>
+          </div>
+          <span class="chip chip--pulse">{{ dashboard_stats.trophies_unlocked }} / {{ dashboard_stats.trophies|length }}
+            trophées</span>
         </div>
-        <div class="hero__hologram">
-          <div class="holo holo--ring"></div>
-          <div class="holo holo--orb"></div>
-          <div class="holo holo--grid"></div>
-          <div class="holo__labels">
-            <span>Centre d'alerte</span>
-            <span>Flux vital</span>
-            <span>Connectivité</span>
+        <div class="stat-grid">
+          <div class="stat-card">
+            <p class="label">Missions effectuées</p>
+            <p class="stat-card__value">{{ dashboard_stats.missions_completed }}</p>
+            <p class="muted">Total des missions lancées par l'équipe.</p>
+          </div>
+          <div class="stat-card">
+            <p class="label">Secouristes inscrits</p>
+            <p class="stat-card__value">{{ dashboard_stats.total_rescuers }}</p>
+            <p class="muted">Effectif synchronisé et prêt.</p>
+          </div>
+          <div class="stat-card stat-card--accent">
+            <p class="label">Trophées gagnés</p>
+            <p class="stat-card__value">{{ dashboard_stats.trophies_unlocked }}</p>
+            <p class="muted">Récompenses débloquées par l'équipe.</p>
           </div>
         </div>
-      </header>
 
-      <main class="shell">
-        {% if page == 'home' %}
-        <section class="panel" aria-label="Tableau de bord opérations">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Accueil</p>
-              <h2>Résumé des opérations</h2>
-              <p class="muted">Vue synthétique : missions terminées, secouristes présents et trophées obtenus.</p>
-            </div>
-            <span class="chip chip--pulse">{{ dashboard_stats.trophies_unlocked }} / {{ dashboard_stats.trophies|length }} trophées</span>
-          </div>
-          <div class="stat-grid">
-            <div class="stat-card">
-              <p class="label">Missions effectuées</p>
-              <p class="stat-card__value">{{ dashboard_stats.missions_completed }}</p>
-              <p class="muted">Total des missions lancées par l'équipe.</p>
-            </div>
-            <div class="stat-card">
-              <p class="label">Secouristes inscrits</p>
-              <p class="stat-card__value">{{ dashboard_stats.total_rescuers }}</p>
-              <p class="muted">Effectif synchronisé et prêt.</p>
-            </div>
-            <div class="stat-card stat-card--accent">
-              <p class="label">Trophées gagnés</p>
-              <p class="stat-card__value">{{ dashboard_stats.trophies_unlocked }}</p>
-              <p class="muted">Récompenses débloquées par l'équipe.</p>
-            </div>
-          </div>
-
-          <div class="dual-grid">
-            <div class="card card--glass">
-              <div class="panel__header">
-                <div>
-                  <p class="eyebrow">Classement</p>
-                  <h3>Scores des participants</h3>
-                  <p class="muted">Suivi du cumul de points et des missions par secouriste.</p>
-                </div>
-              </div>
-              <div class="table-wrapper">
-                <table class="scoreboard">
-                  <thead>
-                    <tr>
-                      <th>Profil</th>
-                      <th>Missions</th>
-                      <th>Score</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {% for entry in dashboard_stats.leaderboard %}
-                    <tr>
-                      <td class="scoreboard__user">
-                        <span class="avatar" data-avatar="{{ entry.avatar }}">{{ avatar_emojis.get(entry.avatar, '🛰️') }}</span>
-                        <span>{{ entry.username }}</span>
-                      </td>
-                      <td>{{ entry.missions }}</td>
-                      <td>{{ entry.score }}</td>
-                    </tr>
-                    {% else %}
-                    <tr>
-                      <td colspan="3" class="muted">Aucun participant enregistré pour le moment.</td>
-                    </tr>
-                    {% endfor %}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div class="card card--glass">
-              <div class="panel__header">
-                <div>
-                  <p class="eyebrow">Trophées</p>
-                  <h3>Récompenses gagnées</h3>
-                  <p class="muted">Progression des exploits débloqués.</p>
-                </div>
-              </div>
-              <div class="trophy-grid">
-                {% for trophy in dashboard_stats.trophies %}
-                <div class="trophy {{ 'trophy--active' if trophy.earned else '' }}">
-                  <div class="trophy__icon">{{ trophy.icon }}</div>
-                  <div>
-                    <p class="trophy__title">{{ trophy.title }}</p>
-                    <p class="muted">{{ trophy.description }}</p>
-                  </div>
-                </div>
-                {% endfor %}
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section class="panel panel--frost">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Journal néon</p>
-              <h2>Centre d'animation</h2>
-              <p class="muted">Animations GSAP : flux d'énergie, barres lumineuses et transitions douces.</p>
-            </div>
-            <button class="btn" id="simulate-btn">Simuler un succès</button>
-          </div>
-          <div class="horizon">
-            <div class="beam" id="beam"></div>
-            <div class="scanner" id="scanner"></div>
-            <div class="pulse-line" id="pulse-line"></div>
-            <div class="logs" id="log-panel"></div>
-          </div>
-        </section>
-        {% elif page == 'admin' %}
-        <section class="panel" id="admin-panel">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Accès admin</p>
-              <h2>Gestion des comptes</h2>
-              <p class="muted">Attribue ou retire les rôles administrateur et formateur. Le compte par défaut est admin / admin.</p>
-            </div>
-            <span class="chip chip--pulse">Sécurisé</span>
-          </div>
-          <div class="table-wrapper">
-            <table class="scoreboard admin-table">
-              <thead>
-                <tr>
-                  <th>Profil</th>
-                  <th>E-mail</th>
-                  <th>Rôle</th>
-                  <th>Mot de passe</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="admin-users-body">
-                {% for managed_user in users %}
-                <tr data-user-id="{{ managed_user.id }}">
-                  <td class="scoreboard__user">
-                    <span class="avatar" data-avatar="{{ managed_user.avatar }}">{{ avatar_emojis.get(managed_user.avatar, '🛰️') }}</span>
-                    <span>{{ managed_user.username }}</span>
-                  </td>
-                  <td>{{ managed_user.email }}</td>
-                  <td>
-                    <select class="role-select">
-                      <option value="participant" {{ 'selected' if managed_user.role == 'participant' else '' }}>Participant</option>
-                      <option value="formateur" {{ 'selected' if managed_user.role == 'formateur' else '' }}>Formateur</option>
-                      <option value="admin" {{ 'selected' if managed_user.role == 'admin' else '' }}>Admin</option>
-                    </select>
-                  </td>
-                  <td>
-                    <input class="password-input" type="password" placeholder="Nouveau mot de passe" minlength="8" aria-label="Nouveau mot de passe">
-                  </td>
-                  <td class="admin-actions">
-                    <button class="btn secondary save-role" type="button">Mettre à jour</button>
-                    <button class="btn danger delete-user" type="button">Supprimer</button>
-                  </td>
-                </tr>
-                {% else %}
-                <tr>
-                  <td colspan="5" class="muted">Aucun compte enregistré pour le moment.</td>
-                </tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </div>
-          <div class="alert hidden" id="admin-alert"></div>
-        </section>
-        {% elif page == 'missions' %}
-        <section class="panel" id="missions">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Hangar des missions</p>
-              <h2>Menu principal</h2>
-              <p class="muted">Choisissez une mission PSE, consultez la difficulté et lancez la progression.</p>
-            </div>
-            <div class="panel__actions">
-              <span class="chip chip--pulse">Synchronisé base</span>
-            </div>
-          </div>
-          <div class="menu-grid" id="level-menu"></div>
-        </section>
-        {% elif page == 'mini-game' %}
-        <section class="panel" id="mini-game">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Petit jeu</p>
-              <h2>Réflexes de secours</h2>
-              <p class="muted">Active un mini-jeu thématique pour entraîner la réactivité de l'équipe.</p>
-            </div>
-            <button class="btn secondary">Lancer le module</button>
-          </div>
-          <p class="muted">Ce module interactif affiche les alertes et scénarios courts pour tester les automatismes.</p>
-        </section>
-        {% elif page == 'questionnaire' %}
-        <section class="panel panel--frost" id="questionnaire">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Questionnaire</p>
-              <h2>Retour d'expérience</h2>
-              <p class="muted">Crée des questionnaires interactifs : thèmes, icônes, points et types de réponses.</p>
-            </div>
-            <div class="panel__actions">
-              <span class="chip chip--pulse">Studio interactif</span>
-            </div>
-          </div>
-          {% if user.role in ['admin', 'formateur'] %}
-          <div class="wizard-grid">
-            <div class="card card--glass wizard">
-              <div class="wizard__header">
-                <div class="wizard__stepper" id="wizard-stepper">
-                  <div class="wizard__step wizard__step--active" data-step="1">
-                    <span class="wizard__badge">1</span>
-                    <div>
-                      <p class="eyebrow">Brief</p>
-                      <p class="label">Détails du questionnaire</p>
-                    </div>
-                  </div>
-                  <div class="wizard__step" data-step="2">
-                    <span class="wizard__badge">2</span>
-                    <div>
-                      <p class="eyebrow">Questions</p>
-                      <p class="label">Points & choix</p>
-                    </div>
-                  </div>
-                  <div class="wizard__step" data-step="3">
-                    <span class="wizard__badge">3</span>
-                    <div>
-                      <p class="eyebrow">Validation</p>
-                      <p class="label">Résumé & envoi</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div class="wizard__body" id="wizard-body">
-                <div class="wizard__panel" data-step="1">
-                  <p class="muted">Définis un titre, une description courte, puis choisis une catégorie et une icône pour situer ton formulaire.</p>
-                  <label>Nom du questionnaire
-                    <input id="wizard-title" type="text" placeholder="Brief PSE terrain" required>
-                  </label>
-                  <label>Description
-                    <textarea id="wizard-description" rows="3" placeholder="Objectifs, contexte ou public visé"></textarea>
-                  </label>
-                  <div class="dual-grid">
-                    <label>Catégorie
-                      <select id="wizard-category">
-                        <option value="Urgence">Urgence</option>
-                        <option value="Formation">Formation</option>
-                        <option value="Logistique">Logistique</option>
-                        <option value="Évaluation">Évaluation</option>
-                        <option value="Général" selected>Général</option>
-                      </select>
-                    </label>
-                    <div class="icon-picker" aria-label="Icône du questionnaire">
-                      <p class="label">Icône</p>
-                      <div class="icon-picker__grid" id="wizard-icons">
-                        <button type="button" class="icon-chip active" data-icon="sparkles">✨</button>
-                        <button type="button" class="icon-chip" data-icon="shield">🛡️</button>
-                        <button type="button" class="icon-chip" data-icon="pulse">⚡</button>
-                        <button type="button" class="icon-chip" data-icon="target">🎯</button>
-                        <button type="button" class="icon-chip" data-icon="compass">🧭</button>
-                        <button type="button" class="icon-chip" data-icon="medkit">🧰</button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="wizard__panel hidden" data-step="2">
-                  <div class="panel__header">
-                    <div>
-                      <p class="eyebrow">Questions</p>
-                      <h3>Points, réponses et bonnes options</h3>
-                    </div>
-                    <button class="btn secondary" id="add-question">Ajouter une question</button>
-                  </div>
-                  <div id="question-builder" class="question-builder"></div>
-                </div>
-
-                <div class="wizard__panel hidden" data-step="3">
-                  <div class="summary" id="wizard-summary">
-                    <p class="muted">Vérifie la cohérence : points cumulés, type de réponse et icône choisie. Le panneau de droite affiche la prévisualisation finale.</p>
-                  </div>
-                  <button class="btn primary" id="save-questionnaire">Publier le questionnaire</button>
-                  <p class="alert hidden" id="wizard-alert"></p>
-                </div>
-              </div>
-
-              <div class="wizard__footer">
-                <button class="btn ghost" id="wizard-prev" disabled>Étape précédente</button>
-                <button class="btn" id="wizard-next">Étape suivante</button>
-              </div>
-            </div>
-
-            <div class="card card--glass" id="wizard-preview">
-              <div class="panel__header">
-                <div>
-                  <p class="eyebrow">Prévisualisation</p>
-                  <h3 id="preview-title">Brief PSE terrain</h3>
-                  <p class="muted" id="preview-description">Ton aperçu évolue en direct : points, types de réponses et icône du formulaire.</p>
-                </div>
-                <div class="preview-icon" id="preview-icon" aria-hidden="true">✨</div>
-              </div>
-              <div class="chip-row" id="preview-meta">
-                <span class="chip">Catégorie : Général</span>
-                <span class="chip">0 point</span>
-              </div>
-              <div class="question-preview" id="preview-questions"></div>
-            </div>
-          </div>
-          {% else %}
+        <div class="dual-grid">
           <div class="card card--glass">
-            <p class="eyebrow">Consultation</p>
-            <h3>Les questionnaires seront partagés ici</h3>
-            <p class="muted">Connecte-toi en tant que formateur ou admin pour ouvrir le studio de création.</p>
-          </div>
-          {% endif %}
-          <div class="card card--glass" id="questionnaire-list">
             <div class="panel__header">
               <div>
-                <p class="eyebrow">Bibliothèque</p>
-                <h3>Questionnaires disponibles</h3>
-                <p class="muted">Chaque entrée affiche la catégorie, l'icône choisie et le nombre de questions.</p>
+                <p class="eyebrow">Classement</p>
+                <h3>Scores des participants</h3>
+                <p class="muted">Suivi du cumul de points et des missions par secouriste.</p>
               </div>
             </div>
-            <div id="questionnaire-cards" class="questionnaire-cards"></div>
+            <div class="table-wrapper">
+              <table class="scoreboard">
+                <thead>
+                  <tr>
+                    <th>Profil</th>
+                    <th>Missions</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for entry in dashboard_stats.leaderboard %}
+                  <tr>
+                    <td class="scoreboard__user">
+                      <span class="avatar" data-avatar="{{ entry.avatar }}">{{ avatar_emojis.get(entry.avatar, '🛰️')
+                        }}</span>
+                      <span>{{ entry.username }}</span>
+                    </td>
+                    <td>{{ entry.missions }}</td>
+                    <td>{{ entry.score }}</td>
+                  </tr>
+                  {% else %}
+                  <tr>
+                    <td colspan="3" class="muted">Aucun participant enregistré pour le moment.</td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
-        </section>
-        {% endif %}
-      </main>
-    </div>
 
-    <aside class="profile-drawer hidden" id="profile-drawer">
-      <div class="profile-drawer__header">
-        <div>
-          <p class="eyebrow">Profil</p>
-          <h2>Identité pilote</h2>
-          <p class="muted">Met à jour tes infos ou choisis un emoji de profil.</p>
-        </div>
-        <button class="btn ghost" id="close-profile">Fermer</button>
-      </div>
-      <div class="chip-row" id="profile-metrics">
-        <span class="chip" id="profile-total-points">Points totaux : 0</span>
-        <span class="chip chip--ghost" id="profile-quiz-points">Questionnaires : 0</span>
-        <span class="chip chip--ghost" id="profile-mission-points">Missions : 0</span>
-      </div>
-      <form class="form" id="profile-form">
-        <label>Pseudo
-          <input name="username" id="profile-username" type="text" autocomplete="username" required>
-        </label>
-        <label>E-mail
-          <input name="email" id="profile-email" type="email" autocomplete="email" required>
-        </label>
-        <label>Nouveau mot de passe (optionnel)
-          <input name="password" id="profile-password" type="password" autocomplete="new-password" minlength="8" placeholder="Laisser vide pour conserver">
-        </label>
-        <div class="avatar-picker" role="radiogroup" aria-label="Choix de l'avatar">
-          <p class="label">Avatar</p>
-          <div class="avatar-picker__grid" id="profile-avatars">
-            <button type="button" class="avatar-chip" data-avatar="alpha">
-              <span class="avatar avatar--alpha">{{ avatar_emojis.get('alpha') }}</span>
-              <div class="avatar-chip__info">
-                <p class="label">Satellite</p>
-                <p class="muted">Toujours connecté au flux central.</p>
+          <div class="card card--glass">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Trophées</p>
+                <h3>Récompenses gagnées</h3>
+                <p class="muted">Progression des exploits débloqués.</p>
               </div>
-            </button>
-            <button type="button" class="avatar-chip" data-avatar="bravo">
-              <span class="avatar avatar--bravo">{{ avatar_emojis.get('bravo') }}</span>
-              <div class="avatar-chip__info">
-                <p class="label">Équipe secours</p>
-                <p class="muted">Réponse rapide et coordonnée.</p>
+            </div>
+            <div class="trophy-grid">
+              {% for trophy in dashboard_stats.trophies %}
+              <div class="trophy {{ 'trophy--active' if trophy.earned else '' }}">
+                <div class="trophy__icon">{{ trophy.icon }}</div>
+                <div>
+                  <p class="trophy__title">{{ trophy.title }}</p>
+                  <p class="muted">{{ trophy.description }}</p>
+                </div>
               </div>
-            </button>
-            <button type="button" class="avatar-chip" data-avatar="charlie">
-              <span class="avatar avatar--charlie">{{ avatar_emojis.get('charlie') }}</span>
-              <div class="avatar-chip__info">
-                <p class="label">Bouée</p>
-                <p class="muted">Protection et assistance immédiate.</p>
-              </div>
-            </button>
-            <button type="button" class="avatar-chip" data-avatar="delta">
-              <span class="avatar avatar--delta">{{ avatar_emojis.get('delta') }}</span>
-              <div class="avatar-chip__info">
-                <p class="label">Boussole</p>
-                <p class="muted">Orientation précise vers l'objectif.</p>
-              </div>
-            </button>
+              {% endfor %}
+            </div>
           </div>
-          <input type="hidden" name="avatar" id="profile-avatar-value" value="alpha">
         </div>
-        <button class="btn primary" type="submit">Mettre à jour</button>
-        <button class="btn danger" type="button" id="profile-delete">Supprimer mon compte</button>
-        <div class="alert hidden" id="profile-alert"></div>
-      </form>
-    </aside>
+      </section>
 
-    <div class="modal hidden" id="questionnaire-player" role="dialog" aria-modal="true" aria-labelledby="player-title">
-      <div class="modal__overlay" id="player-overlay"></div>
-      <div class="modal__content">
-        <div class="modal__header">
+      <section class="panel panel--frost">
+        <div class="panel__header">
           <div>
-            <p class="eyebrow" id="player-category">Questionnaire</p>
-            <h3 id="player-title">Session</h3>
-            <p class="muted" id="player-description">Réponds aux questions et suis la barre de progression.</p>
+            <p class="eyebrow">Journal néon</p>
+            <h2>Centre d'animation</h2>
+            <p class="muted">Animations GSAP : flux d'énergie, barres lumineuses et transitions douces.</p>
           </div>
-          <button class="btn ghost" id="close-player">Fermer</button>
+          <button class="btn" id="simulate-btn">Simuler un succès</button>
         </div>
-        <div class="progress">
-          <div class="progress__bar" id="player-progress"></div>
-          <div class="progress__labels">
-            <span id="player-progress-text">0%</span>
-            <span id="player-score">0 point</span>
+        <div class="horizon">
+          <div class="beam" id="beam"></div>
+          <div class="scanner" id="scanner"></div>
+          <div class="pulse-line" id="pulse-line"></div>
+          <div class="logs" id="log-panel"></div>
+        </div>
+      </section>
+      {% elif page == 'admin' %}
+      <section class="panel" id="admin-panel">
+        <div class="panel__header">
+          <div>
+            <p class="eyebrow">Accès admin</p>
+            <h2>Gestion des comptes</h2>
+            <p class="muted">Attribue ou retire les rôles administrateur et formateur. Le compte par défaut est admin /
+              admin.</p>
+          </div>
+          <span class="chip chip--pulse">Sécurisé</span>
+        </div>
+        <div class="table-wrapper">
+          <table class="scoreboard admin-table">
+            <thead>
+              <tr>
+                <th>Profil</th>
+                <th>E-mail</th>
+                <th>Rôle</th>
+                <th>Mot de passe</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="admin-users-body">
+              {% for managed_user in users %}
+              <tr data-user-id="{{ managed_user.id }}">
+                <td class="scoreboard__user">
+                  <span class="avatar" data-avatar="{{ managed_user.avatar }}">{{ avatar_emojis.get(managed_user.avatar,
+                    '🛰️') }}</span>
+                  <span>{{ managed_user.username }}</span>
+                </td>
+                <td>{{ managed_user.email }}</td>
+                <td>
+                  <select class="role-select">
+                    <option value="participant" {{ 'selected' if managed_user.role=='participant' else '' }}>Participant
+                    </option>
+                    <option value="formateur" {{ 'selected' if managed_user.role=='formateur' else '' }}>Formateur
+                    </option>
+                    <option value="admin" {{ 'selected' if managed_user.role=='admin' else '' }}>Admin</option>
+                  </select>
+                </td>
+                <td>
+                  <input class="password-input" type="password" placeholder="Nouveau mot de passe" minlength="8"
+                    aria-label="Nouveau mot de passe">
+                </td>
+                <td class="admin-actions">
+                  <button class="btn secondary save-role" type="button">Mettre à jour</button>
+                  <button class="btn danger delete-user" type="button">Supprimer</button>
+                </td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="muted">Aucun compte enregistré pour le moment.</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="alert hidden" id="admin-alert"></div>
+      </section>
+      {% elif page == 'missions' %}
+      <section class="panel" id="missions">
+        <div class="panel__header">
+          <div>
+            <p class="eyebrow">Hangar des missions</p>
+            <h2>Menu principal</h2>
+            <p class="muted">Choisissez une mission PSE, consultez la difficulté et lancez la progression.</p>
+          </div>
+          <div class="panel__actions">
+            <span class="chip chip--pulse">Synchronisé base</span>
           </div>
         </div>
-        <div class="modal__body">
-          <div class="player-question" id="player-question"></div>
-          <div class="player-actions">
-            <div class="chip" id="player-step">Question 1</div>
-            <div class="player-buttons">
-              <button class="btn ghost" id="player-prev">Précédent</button>
-              <button class="btn primary" id="player-next">Suivant</button>
+        <div class="menu-grid" id="level-menu" data-category="mission"></div>
+      </section>
+      {% elif page == 'mini-game' %}
+      <section class="panel" id="mini-game">
+        <div class="panel__header">
+          <div>
+            <p class="eyebrow">Petit jeu</p>
+            <h2>Réflexes de secours</h2>
+            <p class="muted">Active un mini-jeu thématique pour entraîner la réactivité de l'équipe.</p>
+          </div>
+          <button class="btn secondary">Lancer le module</button>
+        </div>
+        <div class="menu-grid" id="level-menu" data-category="minigame"></div>
+      </section>
+      {% elif page == 'questionnaire' %}
+      <section class="panel panel--frost" id="questionnaire">
+        <div class="panel__header">
+          <div>
+            <p class="eyebrow">Questionnaire</p>
+            <h2>Retour d'expérience</h2>
+            <p class="muted">Crée des questionnaires interactifs : thèmes, icônes, points et types de réponses.</p>
+          </div>
+          <div class="panel__actions">
+            <span class="chip chip--pulse">Studio interactif</span>
+          </div>
+        </div>
+        {% if user.role in ['admin', 'formateur'] %}
+        <div class="wizard-grid">
+          <div class="card card--glass wizard">
+            <div class="wizard__header">
+              <div class="wizard__stepper" id="wizard-stepper">
+                <div class="wizard__step wizard__step--active" data-step="1">
+                  <span class="wizard__badge">1</span>
+                  <div>
+                    <p class="eyebrow">Brief</p>
+                    <p class="label">Détails du questionnaire</p>
+                  </div>
+                </div>
+                <div class="wizard__step" data-step="2">
+                  <span class="wizard__badge">2</span>
+                  <div>
+                    <p class="eyebrow">Questions</p>
+                    <p class="label">Points & choix</p>
+                  </div>
+                </div>
+                <div class="wizard__step" data-step="3">
+                  <span class="wizard__badge">3</span>
+                  <div>
+                    <p class="eyebrow">Validation</p>
+                    <p class="label">Résumé & envoi</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="wizard__body" id="wizard-body">
+              <div class="wizard__panel" data-step="1">
+                <p class="muted">Définis un titre, une description courte, puis choisis une catégorie et une icône pour
+                  situer ton formulaire.</p>
+                <label>Nom du questionnaire
+                  <input id="wizard-title" type="text" placeholder="Brief PSE terrain" required>
+                </label>
+                <label>Description
+                  <textarea id="wizard-description" rows="3"
+                    placeholder="Objectifs, contexte ou public visé"></textarea>
+                </label>
+                <div class="dual-grid">
+                  <label>Catégorie
+                    <select id="wizard-category">
+                      <option value="Urgence">Urgence</option>
+                      <option value="Formation">Formation</option>
+                      <option value="Logistique">Logistique</option>
+                      <option value="Évaluation">Évaluation</option>
+                      <option value="Général" selected>Général</option>
+                    </select>
+                  </label>
+                  <div class="icon-picker" aria-label="Icône du questionnaire">
+                    <p class="label">Icône</p>
+                    <div class="icon-picker__grid" id="wizard-icons">
+                      <button type="button" class="icon-chip active" data-icon="sparkles">✨</button>
+                      <button type="button" class="icon-chip" data-icon="shield">🛡️</button>
+                      <button type="button" class="icon-chip" data-icon="pulse">⚡</button>
+                      <button type="button" class="icon-chip" data-icon="target">🎯</button>
+                      <button type="button" class="icon-chip" data-icon="compass">🧭</button>
+                      <button type="button" class="icon-chip" data-icon="medkit">🧰</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="wizard__panel hidden" data-step="2">
+                <div class="panel__header">
+                  <div>
+                    <p class="eyebrow">Questions</p>
+                    <h3>Points, réponses et bonnes options</h3>
+                  </div>
+                  <button class="btn secondary" id="add-question">Ajouter une question</button>
+                </div>
+                <div id="question-builder" class="question-builder"></div>
+              </div>
+
+              <div class="wizard__panel hidden" data-step="3">
+                <div class="summary" id="wizard-summary">
+                  <p class="muted">Vérifie la cohérence : points cumulés, type de réponse et icône choisie. Le panneau
+                    de droite affiche la prévisualisation finale.</p>
+                </div>
+                <button class="btn primary" id="save-questionnaire">Publier le questionnaire</button>
+                <p class="alert hidden" id="wizard-alert"></p>
+              </div>
+            </div>
+
+            <div class="wizard__footer">
+              <button class="btn ghost" id="wizard-prev" disabled>Étape précédente</button>
+              <button class="btn" id="wizard-next">Étape suivante</button>
             </div>
           </div>
+
+          <div class="card card--glass" id="wizard-preview">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Prévisualisation</p>
+                <h3 id="preview-title">Brief PSE terrain</h3>
+                <p class="muted" id="preview-description">Ton aperçu évolue en direct : points, types de réponses et
+                  icône du formulaire.</p>
+              </div>
+              <div class="preview-icon" id="preview-icon" aria-hidden="true">✨</div>
+            </div>
+            <div class="chip-row" id="preview-meta">
+              <span class="chip">Catégorie : Général</span>
+              <span class="chip">0 point</span>
+            </div>
+            <div class="question-preview" id="preview-questions"></div>
+          </div>
         </div>
-        <div class="modal__footer hidden" id="player-result">
-          <div class="result">
-            <div class="result__stars" id="result-stars"></div>
+        {% else %}
+        <div class="card card--glass">
+          <p class="eyebrow">Consultation</p>
+          <h3>Les questionnaires seront partagés ici</h3>
+          <p class="muted">Connecte-toi en tant que formateur ou admin pour ouvrir le studio de création.</p>
+        </div>
+        {% endif %}
+        <div class="card card--glass" id="questionnaire-list">
+          <div class="panel__header">
             <div>
-              <p class="eyebrow">Résultat</p>
-              <h4 id="result-label">Bon travail !</h4>
-              <p class="muted" id="result-detail">Continue pour améliorer ton score.</p>
+              <p class="eyebrow">Bibliothèque</p>
+              <h3>Questionnaires disponibles</h3>
+              <p class="muted">Chaque entrée affiche la catégorie, l'icône choisie et le nombre de questions.</p>
             </div>
+          </div>
+          <div id="questionnaire-cards" class="questionnaire-cards"></div>
+        </div>
+      </section>
+      {% endif %}
+    </main>
+  </div>
+
+  <aside class="profile-drawer hidden" id="profile-drawer">
+    <div class="profile-drawer__header">
+      <div>
+        <p class="eyebrow">Profil</p>
+        <h2>Identité pilote</h2>
+        <p class="muted">Met à jour tes infos ou choisis un emoji de profil.</p>
+      </div>
+      <button class="btn ghost" id="close-profile">Fermer</button>
+    </div>
+    <div class="chip-row" id="profile-metrics">
+      <span class="chip" id="profile-total-points">Points totaux : 0</span>
+      <span class="chip chip--ghost" id="profile-quiz-points">Questionnaires : 0</span>
+      <span class="chip chip--ghost" id="profile-mission-points">Missions : 0</span>
+      <span class="chip chip--ghost" id="profile-minigame-points">Mini-jeux : 0</span>
+    </div>
+    <form class="form" id="profile-form">
+      <label>Pseudo
+        <input name="username" id="profile-username" type="text" autocomplete="username" required>
+      </label>
+      <label>E-mail
+        <input name="email" id="profile-email" type="email" autocomplete="email" required>
+      </label>
+      <label>Nouveau mot de passe (optionnel)
+        <input name="password" id="profile-password" type="password" autocomplete="new-password" minlength="8"
+          placeholder="Laisser vide pour conserver">
+      </label>
+      <div class="avatar-picker" role="radiogroup" aria-label="Choix de l'avatar">
+        <p class="label">Avatar</p>
+        <div class="avatar-picker__grid" id="profile-avatars">
+          <button type="button" class="avatar-chip" data-avatar="alpha">
+            <span class="avatar avatar--alpha">{{ avatar_emojis.get('alpha') }}</span>
+            <div class="avatar-chip__info">
+              <p class="label">Satellite</p>
+              <p class="muted">Toujours connecté au flux central.</p>
+            </div>
+          </button>
+          <button type="button" class="avatar-chip" data-avatar="bravo">
+            <span class="avatar avatar--bravo">{{ avatar_emojis.get('bravo') }}</span>
+            <div class="avatar-chip__info">
+              <p class="label">Équipe secours</p>
+              <p class="muted">Réponse rapide et coordonnée.</p>
+            </div>
+          </button>
+          <button type="button" class="avatar-chip" data-avatar="charlie">
+            <span class="avatar avatar--charlie">{{ avatar_emojis.get('charlie') }}</span>
+            <div class="avatar-chip__info">
+              <p class="label">Bouée</p>
+              <p class="muted">Protection et assistance immédiate.</p>
+            </div>
+          </button>
+          <button type="button" class="avatar-chip" data-avatar="delta">
+            <span class="avatar avatar--delta">{{ avatar_emojis.get('delta') }}</span>
+            <div class="avatar-chip__info">
+              <p class="label">Boussole</p>
+              <p class="muted">Orientation précise vers l'objectif.</p>
+            </div>
+          </button>
+        </div>
+        <input type="hidden" name="avatar" id="profile-avatar-value" value="alpha">
+      </div>
+      <button class="btn primary" type="submit">Mettre à jour</button>
+      <button class="btn danger" type="button" id="profile-delete">Supprimer mon compte</button>
+      <div class="alert hidden" id="profile-alert"></div>
+    </form>
+  </aside>
+
+  <div class="modal hidden" id="questionnaire-player" role="dialog" aria-modal="true" aria-labelledby="player-title">
+    <div class="modal__overlay" id="player-overlay"></div>
+    <div class="modal__content">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow" id="player-category">Questionnaire</p>
+          <h3 id="player-title">Session</h3>
+          <p class="muted" id="player-description">Réponds aux questions et suis la barre de progression.</p>
+        </div>
+        <button class="btn ghost" id="close-player">Fermer</button>
+      </div>
+      <div class="progress">
+        <div class="progress__bar" id="player-progress"></div>
+        <div class="progress__labels">
+          <span id="player-progress-text">0%</span>
+          <span id="player-score">0 point</span>
+        </div>
+      </div>
+      <div class="modal__body">
+        <div class="player-question" id="player-question"></div>
+        <div class="player-actions">
+          <div class="chip" id="player-step">Question 1</div>
+          <div class="player-buttons">
+            <button class="btn ghost" id="player-prev">Précédent</button>
+            <button class="btn primary" id="player-next">Suivant</button>
+          </div>
+        </div>
+      </div>
+      <div class="modal__footer hidden" id="player-result">
+        <div class="result">
+          <div class="result__stars" id="result-stars"></div>
+          <div>
+            <p class="eyebrow">Résultat</p>
+            <h4 id="result-label">Bon travail !</h4>
+            <p class="muted" id="result-detail">Continue pour améliorer ton score.</p>
           </div>
         </div>
       </div>
     </div>
+  </div>
 
-    <script>
-      const LEVELS = {{ levels|tojson }};
-      window.AVATAR_EMOJIS = {{ avatar_emojis|tojson }};
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
-  </body>
+  <script>
+    const LEVELS = {{ levels| tojson }};
+    window.AVATAR_EMOJIS = {{ avatar_emojis | tojson }};
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+
 </html>

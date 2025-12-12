@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- Cache Busting Meta Tags -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
+
+  <title>{{ level.name }} - Protec Rescue 38</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=10">
+  <style>
+    /* Inline styles for specific interactive mission elements */
+    .mission-interactive {
+      position: relative;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
+      background: #000;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+
+    .scene-container {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+    }
+
+    .scene-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.6;
+      transition: opacity 0.5s ease-in-out, transform 1s ease-out;
+    }
+
+    .scene-image.zoomed {
+      transform: scale(1.1);
+    }
+
+    .hud-top {
+      position: relative;
+      z-index: 10;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+    }
+
+    .hud-status {
+      display: flex;
+      gap: 1rem;
+      align-items: center;
+    }
+
+    .pulse-indicator {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--critical);
+      animation: pulse-red 1s infinite;
+    }
+
+    @keyframes pulse-red {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 63, 171, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 10px rgba(255, 63, 171, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 63, 171, 0);
+      }
+    }
+
+    @keyframes pulse-zone {
+      0% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+
+      50% {
+        transform: scale(1.1);
+        opacity: 0.4;
+      }
+
+      100% {
+        transform: scale(1);
+        opacity: 0.8;
+      }
+    }
+
+    .dialogue-box {
+      position: relative;
+      z-index: 10;
+      margin: auto;
+      width: 90%;
+      max-width: 800px;
+      background: rgba(16, 18, 27, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      text-align: center;
+    }
+
+    .dialogue-text {
+      font-size: 1.25rem;
+      line-height: 1.6;
+      color: var(--fg);
+    }
+
+    .choices-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 600px) {
+      .choices-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .choice-btn {
+      padding: 1rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      border-radius: 8px;
+      transition: all 0.2s ease;
+    }
+
+    .choice-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateY(-2px);
+      border-color: var(--primary);
+    }
+
+    .choice-btn.critical {
+      border-color: var(--critical);
+    }
+
+    .end-screen {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .minigame-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 50;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .bpm-display {
+      font-size: 4rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: var(--primary);
+    }
+
+    .click-target {
+      width: 150px;
+      height: 150px;
+      border-radius: 50%;
+      background: var(--surface);
+      border: 4px solid var(--primary);
+      display: grid;
+      place-items: center;
+      font-size: 1.2rem;
+      cursor: pointer;
+      user-select: none;
+      transition: transform 0.05s;
+      margin-top: 2rem;
+    }
+
+    .click-target:active {
+      transform: scale(0.9);
+    }
+
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="mission-interactive">
+    <div class="scene-container">
+      <img id="scene-img" src="{{ url_for('static', filename='img/mission_acr/protec_intervention_start.jpg') }}"
+        class="scene-image" alt="Scène">
+      <video id="scene-video" class="scene-image hidden" playsinline muted loop>
+        <source src="" type="video/mp4">
+      </video>
+      <div class="overlay"></div>
+    </div>
+
+    <div class="hud-top">
+      <a href="{{ url_for('missions_page') }}" class="btn ghost">✕ Quitter</a>
+      <div class="hud-status">
+        <div class="pulse-indicator"></div>
+        <span class="chip" id="phase-display">Phase 1 : Approche</span>
+        <span class="chip chip--pulse" id="score-display">0 pts</span>
+      </div>
+    </div>
+
+    <div id="dialogue-container" class="dialogue-box">
+      <h2 id="speaker-name" class="eyebrow">Témoins</h2>
+      <p id="dialogue-text" class="dialogue-text">« Au secours ! Cet homme s'est effondré, il ne bouge plus ! »</p>
+      <div id="choices-container" class="choices-grid">
+        <!-- Buttons injected by JS -->
+      </div>
+    </div>
+
+    <!-- Minigame Overlay (RCP) -->
+    <div id="minigame-overlay" class="minigame-overlay hidden">
+      <p class="eyebrow">Réanimation Cardio-Pulmonaire</p>
+      <h2>Maintenez le rythme</h2>
+      <p class="muted">Appuyez en cadence (100-120 bpm)</p>
+      <div class="bpm-display" id="bpm-counter">0</div>
+      <button id="cpr-btn" class="click-target"
+        style="width: 200px; height: 200px; font-size: 1.5rem; font-weight: 800; background: #fff; color: #000; box-shadow: 0 0 20px rgba(255,255,255,0.5);">MASSER</button>
+      <div id="cpr-streak" style="margin-top: 2rem; font-size: 1.5rem; font-weight: bold; color: white;">Série : 0 / 8
+      </div>
+      <p class="muted" style="margin-top: 0.5rem; font-size: 0.9rem;">Enchaînez 8 bonnes compressions !</p>
+    </div>
+
+    <!-- Electrodes Overlay -->
+    <div id="electrodes-overlay" class="minigame-overlay hidden" style="background: rgba(0,0,0,0.85);">
+      <h2 style="margin-bottom: 2rem;">Pose des électrodes</h2>
+      <p class="muted">Appuyez sur les zones en surbrillance pour coller les patchs.</p>
+      <div id="torso-target"
+        style="position: relative; width: 350px; height: 350px; border-radius: 12px; overflow: hidden; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+        <img src="{{ url_for('static', filename='img/mission_acr/scene_4.png') }}"
+          style="width: 100%; height: 100%; object-fit: cover;">
+
+        <!-- Hitboxes for interaction -->
+        <div id="zone-1" class="click-zone"
+          style="position: absolute; top: 25%; right: 20%; width: 60px; height: 60px; border: 2px dashed #00ffff; border-radius: 50%; animation: pulse-zone 2s infinite; cursor: pointer;">
+        </div>
+        <div id="zone-2" class="click-zone"
+          style="position: absolute; bottom: 35%; left: 20%; width: 60px; height: 60px; border: 2px dashed #00ffff; border-radius: 50%; animation: pulse-zone 2s infinite; animation-delay: 1s; cursor: pointer;">
+        </div>
+
+        <!-- Placed Electrodes -->
+        <!-- Use simple white circles with cyan border if icon missing, to represent electrodes -->
+        <div id="electrode-1" class="electrode hidden"
+          style="position: absolute; top: 25%; right: 20%; width: 60px; height: 60px; background: #fff; border-radius: 50%; border: 4px solid #3af2ff; z-index: 10;">
+        </div>
+        <div id="electrode-2" class="electrode hidden"
+          style="position: absolute; bottom: 35%; left: 20%; width: 60px; height: 60px; background: #fff; border-radius: 50%; border: 4px solid #3af2ff; z-index: 10;">
+        </div>
+      </div>
+    </div>
+
+    <!-- Shock Overlay -->
+    <div id="shock-overlay" class="minigame-overlay hidden" style="background: rgba(50,0,0,0.9);">
+      <div id="shock-wrapper" style="text-align: center;">
+        <h1 class="eyebrow" style="color: #ff3f3f; font-size: 2rem; margin-bottom: 2rem;">CHOC CONSEILLÉ</h1>
+        <p style="color: white; margin-bottom: 2rem;">Écartez-vous !</p>
+        <button id="shock-btn" class="click-target"
+          style="width: 220px; height: 220px; border-color: #ff3f3f; background: #ff3f3f; color: white; font-weight: 800; font-size: 2.5rem; box-shadow: 0 0 50px rgba(255, 63, 63, 0.8);">⚡
+          CHOC</button>
+      </div>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" class="end-screen hidden">
+      <h1 id="end-title">Victoire !</h1>
+      <p id="end-message" style="max-width: 600px; margin: 1rem 0 2rem; color: #ccc;">La victime a été prise en charge
+        correctement.</p>
+
+      <div class="stat-grid" style="margin-bottom: 2rem; gap: 2rem; justify-content: center;">
+        <div class="stat-card">
+          <p class="label">Score Final</p>
+          <p class="stat-card__value" id="end-score">100</p>
+        </div>
+      </div>
+
+      <div class="cta-row">
+        <button class="btn primary" onclick="location.reload()">Rejouer</button>
+        <a href="{{ url_for('missions_page') }}" class="btn secondary">Retour au QG</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.MISSION_CONTEXT = {
+      levelId: {{ level.id }},
+    slug: { { level.slug | tojson } },
+    savedScore: { { progress.score if progress else 0 } }
+      };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+  <script src="{{ url_for('static', filename='js/mission_interactive.js') }}?v=10"></script>
+</body>
+
+</html>

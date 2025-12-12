@@ -2,8 +2,9 @@ import os
 from datetime import datetime
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import func, inspect, text
+from sqlalchemy import func, inspect, text, JSON
 from werkzeug.security import generate_password_hash, check_password_hash
+from pendu_words import PENDU_WORDS
 
 
 db = SQLAlchemy()
@@ -26,6 +27,9 @@ def create_app():
         db.create_all()
         ensure_avatar_column()
         ensure_role_column()
+        ensure_locked_column()
+        ensure_level_category_column()
+        ensure_progress_data_column()
         bootstrap_levels()
         ensure_admin_account()
 
@@ -54,6 +58,8 @@ class Level(db.Model):
     description = db.Column(db.Text, nullable=False)
     difficulty = db.Column(db.String(40), nullable=False)
     icon = db.Column(db.String(40), nullable=False)
+    category = db.Column(db.String(20), default="mission")
+    is_locked = db.Column(db.Boolean, default=False)
     progress = db.relationship("Progress", back_populates="level", cascade="all, delete")
 
 
@@ -63,6 +69,7 @@ class Progress(db.Model):
     status = db.Column(db.String(20), default="non_commence")
     user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
     level_id = db.Column(db.Integer, db.ForeignKey("level.id"), nullable=False)
+    data = db.Column(db.JSON, default={})
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     user = db.relationship("User", back_populates="progress")
@@ -110,32 +117,20 @@ class AnswerOption(db.Model):
 
 LEVEL_SEED = [
     {
-        "slug": "initiation",
-        "name": "Initiation vitale",
-        "description": "Stabilisez les bases : protection du site, sécurité et premiers bilans.",
-        "difficulty": "facile",
-        "icon": "shield",
-    },
-    {
-        "slug": "urgence",
-        "name": "Urgences dynamiques",
-        "description": "Coordonnez l'équipe, sécurisez la victime et basculez en mode alerte.",
-        "difficulty": "moyen",
-        "icon": "pulse",
-    },
-    {
-        "slug": "mission",
-        "name": "Mission avancée",
-        "description": "Cas complexe : plusieurs victimes, besoin d'appels prioritaires et gestes adaptés.",
+        "slug": "arret_cardiaque",
+        "name": "Arrêt Cardiaque (PSE 2024)",
+        "description": "Simulation interactive : Prise en charge d'un ACR adulte avec témoins.",
         "difficulty": "difficile",
-        "icon": "target",
+        "icon": "pulse",
+        "category": "mission",
     },
     {
-        "slug": "reflexe",
-        "name": "Sprint réflexe",
-        "description": "Mini-mission gamifiée avec animations lumineuses et réactions chronométrées.",
-        "difficulty": "flash",
-        "icon": "joystick",
+        "slug": "pendu_300",
+        "name": "Challenge Lexique 300",
+        "description": "Devinez les 300 mots du secourisme. Un seul essai par mot !",
+        "difficulty": "expert",
+        "icon": "brain",
+        "category": "minigame",
     },
 ]
 
@@ -165,6 +160,23 @@ def ensure_avatar_column():
     db.session.commit()
 
 
+def ensure_progress_data_column():
+    inspector = inspect(db.engine)
+    column_names = {column["name"] for column in inspector.get_columns("progress")}
+    if "data" in column_names:
+        return
+
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE progress ADD COLUMN data JSON"))
+            conn.commit()
+    else:
+        # Postgres generic
+        db.session.execute(text("ALTER TABLE progress ADD COLUMN data JSONB DEFAULT '{}'"))
+        db.session.commit()
+
+
 def ensure_role_column():
     inspector = inspect(db.engine)
     column_names = {column["name"] for column in inspector.get_columns("user")}
@@ -177,6 +189,37 @@ def ensure_role_column():
     else:
         db.session.execute(
             text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT \'participant\'')
+        )
+    db.session.commit()
+
+
+def ensure_locked_column():
+    inspector = inspect(db.engine)
+    column_names = {column["name"] for column in inspector.get_columns("level")}
+    if "is_locked" in column_names:
+        return
+
+    if dialect == "sqlite":
+        db.session.execute(text("ALTER TABLE level ADD COLUMN is_locked BOOLEAN DEFAULT 0"))
+    else:
+        db.session.execute(
+            text('ALTER TABLE "level" ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE')
+        )
+    db.session.commit()
+
+
+def ensure_level_category_column():
+    inspector = inspect(db.engine)
+    column_names = {column["name"] for column in inspector.get_columns("level")}
+    if "category" in column_names:
+        return
+
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        db.session.execute(text("ALTER TABLE level ADD COLUMN category VARCHAR(20) DEFAULT 'mission'"))
+    else:
+        db.session.execute(
+            text('ALTER TABLE "level" ADD COLUMN IF NOT EXISTS category VARCHAR(20) DEFAULT \'mission\'')
         )
     db.session.commit()
 
@@ -198,9 +241,27 @@ def ensure_admin_account():
 
 
 def bootstrap_levels():
+    # Remove old levels that are not in SEED
+    target_slugs = {l["slug"] for l in LEVEL_SEED}
+    existing_levels = Level.query.all()
+    for lvl in existing_levels:
+        if lvl.slug not in target_slugs:
+            db.session.delete(lvl)
+            
     for level_data in LEVEL_SEED:
-        if not Level.query.filter_by(slug=level_data["slug"]).first():
+        existing = Level.query.filter_by(slug=level_data["slug"]).first()
+        if not existing:
             db.session.add(Level(**level_data))
+        else:
+             # Create a copy to update safely
+            data = dict(level_data)
+            existing.name = data["name"]
+            existing.description = data["description"]
+            existing.difficulty = data["difficulty"]
+            existing.difficulty = data["difficulty"]
+            existing.icon = data["icon"]
+            existing.category = data.get("category", "mission")
+            
     db.session.commit()
 
 
@@ -221,6 +282,10 @@ def serialize_level(level: Level, progress=None):
         "description": level.description,
         "difficulty": level.difficulty,
         "icon": level.icon,
+        "difficulty": level.difficulty,
+        "icon": level.icon,
+        "category": level.category,
+        "is_locked": level.is_locked,
         "progress": progress,
     }
 
@@ -418,6 +483,24 @@ def register_routes(app: Flask) -> None:
             progress = Progress(user_id=user.id, level_id=level.id, status="en_cours")
             db.session.add(progress)
             db.session.commit()
+            
+        # Calculate total score for the context
+        progress_scores = sum(p.score for p in user.progress)
+        
+        questionnaire_scores = (
+            db.session.query(func.coalesce(func.sum(QuestionnaireResult.score), 0))
+            .filter(QuestionnaireResult.user_id == user.id)
+            .scalar()
+        ) or 0
+        
+        total_score = progress_scores + questionnaire_scores
+
+        if level.slug == 'arret_cardiaque':
+            return render_template("mission_interactive.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
+        
+        if level.slug == 'pendu_300':
+            return render_template("mission_pendu.html", level=level, progress=progress, total_score=total_score)
+            
         return render_template("mission.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
 
     @app.route("/mini-game")
@@ -510,7 +593,7 @@ def register_routes(app: Flask) -> None:
             db.session.add(progress)
 
         progress.status = status
-        progress.score = max(progress.score, score)
+        progress.score = max(progress.score or 0, score)
         db.session.commit()
         return jsonify(serialize_progress(progress))
 
@@ -522,7 +605,9 @@ def register_routes(app: Flask) -> None:
         progress_list = [serialize_progress(p) for p in user.progress]
         questionnaire_results = QuestionnaireResult.query.filter_by(user_id=user.id).all()
         quiz_points = sum(result.score for result in questionnaire_results)
-        mission_points = sum(p.score for p in user.progress)
+        mission_points = sum(p.score for p in user.progress if p.level.category == 'mission')
+        minigame_points = sum(p.score for p in user.progress if p.level.category == 'minigame')
+        
         return jsonify(
             {
                 **serialize_user(user),
@@ -530,7 +615,8 @@ def register_routes(app: Flask) -> None:
                 "questionnaire_results": [serialize_questionnaire_result(r) for r in questionnaire_results],
                 "quiz_points": quiz_points,
                 "mission_points": mission_points,
-                "total_points": quiz_points + mission_points,
+                "minigame_points": minigame_points,
+                "total_points": quiz_points + mission_points + minigame_points,
             }
         )
 
@@ -620,6 +706,17 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         return jsonify({"ok": True})
 
+    @app.route("/api/admin/levels/<int:level_id>/toggle_lock", methods=["POST"])
+    def api_admin_toggle_lock(level_id: int):
+        admin_user, error = ensure_admin_access()
+        if error:
+            return error
+
+        level = Level.query.get_or_404(level_id)
+        level.is_locked = not level.is_locked
+        db.session.commit()
+        return jsonify(serialize_level(level))
+        
     @app.route("/api/questionnaires", methods=["GET"])
     def api_questionnaires():
         user = current_user()
@@ -803,6 +900,122 @@ def register_routes(app: Flask) -> None:
 
         db.session.commit()
         return jsonify(serialize_questionnaire(questionnaire))
+
+    # --------------------------------------------------------------------------
+    # PENDU APIs
+    # --------------------------------------------------------------------------
+
+    @app.route("/api/pendu/state")
+    def api_pendu_state():
+        user = current_user()
+        if not user:
+             return jsonify({"error": "Authentification requise"}), 401
+        
+        level = Level.query.filter_by(slug="pendu_300").first_or_404()
+        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+        
+        if not progress:
+            progress = Progress(user_id=user.id, level_id=level.id, data={"played_indices": [], "won": 0, "lost": 0}, status="en_cours")
+            db.session.add(progress)
+            db.session.commit()
+            
+        data = progress.data or {}
+        if not isinstance(data, dict): data = {} 
+        
+        played = data.get("played_indices", [])
+        won = data.get("won", 0)
+        lost = data.get("lost", 0)
+        
+        total_words = 300
+        played_count = len(played)
+        
+        # Sync score in case of drift
+        correct_score = won * 10
+        if progress.score != correct_score:
+            progress.score = correct_score
+            db.session.commit()
+        
+        return jsonify({
+            "played_count": played_count,
+            "won_count": won,
+            "lost_count": lost,
+            "total_words": total_words,
+            "score": progress.score,
+            "is_finished": played_count >= total_words
+        })
+
+    @app.route("/api/pendu/word")
+    def api_pendu_word():
+        import random
+        user = current_user()
+        if not user: return jsonify({"error": "Authentification requise"}), 401
+        
+        level = Level.query.filter_by(slug="pendu_300").first_or_404()
+        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+        
+        data = progress.data or {}
+        played_indices = set(data.get("played_indices", []))
+        
+        all_indices = set(range(len(PENDU_WORDS)))
+        available = list(all_indices - played_indices)
+        
+        if not available:
+            return jsonify({"finished": True})
+            
+        idx = random.choice(available)
+        word = PENDU_WORDS[idx]
+        
+        return jsonify({
+            "word": word,
+            "index": idx,
+            "length": len(word)
+        })
+
+    @app.route("/api/pendu/result", methods=["POST"])
+    def api_pendu_result():
+        user = current_user()
+        if not user: return jsonify({"error": "Authentification requise"}), 401
+        
+        payload = request.get_json()
+        word_index = payload.get("index")
+        success = payload.get("success")
+        
+        if word_index is None or success is None:
+            return jsonify({"error": "Invalid payload"}), 400
+            
+        level = Level.query.filter_by(slug="pendu_300").first_or_404()
+        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+        
+        data = dict(progress.data or {})
+        played = set(data.get("played_indices", []))
+        
+        if word_index in played:
+            return jsonify({"error": "Already played"}), 400
+            
+        data.setdefault("played_indices", []).append(word_index)
+        
+        if success:
+            data["won"] = data.get("won", 0) + 1
+            progress.score += 10
+        else:
+            data["lost"] = data.get("lost", 0) + 1
+            
+        progress.data = data
+        
+        if len(data["played_indices"]) >= 300:
+            progress.status = "termine"
+            
+        # Enforce score calculation rule: 10 pts per win
+        progress.score = data["won"] * 10
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "score": progress.score,
+            "won": data["won"],
+            "lost": data["lost"],
+            "finished": len(data["played_indices"]) >= 300
+        })
 
 
 app = create_app()

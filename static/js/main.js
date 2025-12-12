@@ -30,6 +30,7 @@ const profileDeleteBtn = qs('#profile-delete');
 const profileTotalPoints = qs('#profile-total-points');
 const profileQuizPoints = qs('#profile-quiz-points');
 const profileMissionPoints = qs('#profile-mission-points');
+const profileMinigamePoints = qs('#profile-minigame-points');
 const avatarChips = qsa('#profile-avatars .avatar-chip');
 const wizardStepper = qs('#wizard-stepper');
 const wizardBody = qs('#wizard-body');
@@ -191,6 +192,7 @@ function updateProfileMetrics(data) {
   if (profileTotalPoints) profileTotalPoints.textContent = `Points totaux : ${data.total_points ?? 0}`;
   if (profileQuizPoints) profileQuizPoints.textContent = `Questionnaires : ${data.quiz_points ?? 0}`;
   if (profileMissionPoints) profileMissionPoints.textContent = `Missions : ${data.mission_points ?? 0}`;
+  if (profileMinigamePoints) profileMinigamePoints.textContent = `Mini-jeux : ${data.minigame_points ?? 0}`;
 }
 
 async function loadProfileData() {
@@ -243,18 +245,37 @@ function clearProfileAlert() {
 function renderLevel(level) {
   const wrapper = document.createElement('article');
   const isFeatured = level.slug === FEATURED_MISSION_SLUG;
-  wrapper.className = `menu-card mission-${level.slug} ${isFeatured ? 'menu-card--featured' : ''}`;
+  const isLocked = level.is_locked;
+  const isAdmin = currentUser?.role === 'admin';
+
+  wrapper.className = `menu-card mission-${level.slug} ${isFeatured ? 'menu-card--featured' : ''} ${isLocked ? 'locked' : ''}`;
+
+  let adminControls = '';
+  if (isAdmin) {
+    adminControls = `
+        <div class="admin-actions">
+           <button class="btn ghost small toggle-lock" data-id="${level.id}">
+              ${isLocked ? '🔓 Déverrouiller' : '🔒 Verrouiller'}
+           </button>
+        </div>
+      `;
+  }
+
   wrapper.innerHTML = `
     <div class="icon">${iconFor(level.icon)}</div>
+    ${isLocked ? '<div style="position:absolute;top:1rem;right:1rem;font-size:1.5rem;">🔒</div>' : ''}
     <p class="eyebrow">${level.slug}</p>
     <h3>${level.name}</h3>
     <p class="desc">${level.description}</p>
     <p class="difficulty">${level.difficulty.toUpperCase()}</p>
     <div class="launch">
       ${isFeatured ? '<span class="chip chip--ghost">Mission mise en avant</span>' : ''}
-      <button class="btn primary" data-level="${level.id}" data-slug="${level.slug}">Lancer</button>
+      <button class="btn primary" data-level="${level.id}" data-slug="${level.slug}" ${isLocked && !isAdmin ? 'disabled' : ''}>
+        ${isLocked ? (isAdmin ? 'Force (Admin)' : 'Verrouillé') : 'Lancer'}
+      </button>
       <span class="chip">${level.progress ? level.progress.status : 'Nouveau'}</span>
     </div>
+    ${adminControls}
   `;
   return wrapper;
 }
@@ -277,12 +298,21 @@ async function refreshMenu() {
     return;
   }
   const data = await res.json();
+  currentUser = data.user;
   if (levelMenu) {
     levelMenu.innerHTML = '';
-    const featured = data.levels.find((lvl) => lvl.slug === FEATURED_MISSION_SLUG) || data.levels[0];
-    if (featured) levelMenu.appendChild(renderLevel(featured));
+    const categoryFilter = levelMenu.dataset.category;
+    // Render filtered levels
+    data.levels.forEach((lvl) => {
+      // Filter logic: if no category is filtering, show all (or default behavior), 
+      // if filtering is active, strictly match.
+      // Default category for old levels is 'mission'.
+      const levelCategory = lvl.category || 'mission';
+      if (categoryFilter && levelCategory !== categoryFilter) return;
+
+      levelMenu.appendChild(renderLevel(lvl));
+    });
   }
-  currentUser = data.user;
   updateStatus(currentUser, data.levels.filter((l) => l.progress).length);
   fillProfileForm(currentUser);
 }
@@ -376,8 +406,22 @@ function setupProfileMenu() {
 function setupMenuActions() {
   if (!levelMenu) return;
   levelMenu.addEventListener('click', async (evt) => {
+    const lockBtn = evt.target.closest('.toggle-lock');
+    if (lockBtn) {
+      const levelId = lockBtn.dataset.id;
+      try {
+        await postJson(`/api/admin/levels/${levelId}/toggle_lock`, {});
+        await refreshMenu();
+      } catch (err) {
+        setAlert(err.message);
+      }
+      return;
+    }
+
+    // Launch Mission
     const btn = evt.target.closest('button[data-level]');
-    if (!btn) return;
+    if (!btn || btn.disabled) return;
+
     const levelId = parseInt(btn.dataset.level, 10);
     const slug = btn.dataset.slug;
     animateSuccess(`Mission ${levelId} lancée`);
@@ -531,8 +575,8 @@ function renderQuestion(question) {
           <input type="text" class="option-text" value="${opt.label || ''}" placeholder="Proposition">
           <label class="option-check">
             ${question.type === 'multiple'
-              ? `<input type="checkbox" class="option-correct" ${opt.is_correct ? 'checked' : ''}> Bonne réponse`
-              : `<input type="radio" name="correct-${question.id}" class="option-correct" ${opt.is_correct ? 'checked' : ''}> Bonne réponse`}
+          ? `<input type="checkbox" class="option-correct" ${opt.is_correct ? 'checked' : ''}> Bonne réponse`
+          : `<input type="radio" name="correct-${question.id}" class="option-correct" ${opt.is_correct ? 'checked' : ''}> Bonne réponse`}
           </label>
           <button class="icon-btn remove-option" type="button" aria-label="Supprimer l'option">✖</button>
         </div>
@@ -545,14 +589,13 @@ function renderQuestion(question) {
       ${optionsHtml}
       <button class="btn ghost add-option" type="button">Ajouter une option</button>
     </div>
-    ${
-      question.type === 'text'
-        ? `<div class="text-expected">
+    ${question.type === 'text'
+      ? `<div class="text-expected">
             <label>Réponse attendue
               <input class="text-expected__input" value="${question.options?.[0]?.label || ''}" placeholder="Réponse correcte" />
             </label>
           </div>`
-        : ''
+      : ''
     }`;
 
   return `
@@ -569,8 +612,8 @@ function renderQuestion(question) {
           </label>
           <select class="question-type">
             ${Object.entries(QUESTION_TYPES)
-              .map(([value, label]) => `<option value="${value}" ${question.type === value ? 'selected' : ''}>${label}</option>`)
-              .join('')}
+      .map(([value, label]) => `<option value="${value}" ${question.type === value ? 'selected' : ''}>${label}</option>`)
+      .join('')}
           </select>
           <button class="icon-btn remove-question" type="button" aria-label="Supprimer">🗑️</button>
         </div>
