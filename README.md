@@ -36,3 +36,10 @@ docker compose up --build
 - Menus de mission dynamiques, difficultés et progression en base.
 - Animations GSAP (scanner, lignes de flux) et interface futuriste.
 - API JSON pour le menu, le profil et la progression.
+
+## Pack d'icônes photo
+Un pack d'icônes SVG dédié à la photo est disponible dans `static/icons/photo-pack/`. Elles reprennent le tracé néon (#ff6b3d) utilisé dans l'UI et peuvent être insérées avec :
+```html
+<img src="{{ url_for('static', filename='icons/photo-pack/photo-camera.svg') }}" alt="Icône appareil photo" width="48" height="48" />
+```
+Consultez le `README.md` du dossier pour la liste complète et les conseils de style.

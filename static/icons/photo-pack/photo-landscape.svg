@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc" fill="none" stroke="#ff6b3d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Icône paysage</title>
+  <desc id="desc">Cadre horizontal avec montagnes et soleil.</desc>
+  <rect x="8" y="16" width="48" height="32" rx="5" ry="5" />
+  <circle cx="46" cy="24" r="4" />
+  <path d="M14 42l10-12 6 8 6-8 14 12" />
+  <line x1="8" y1="24" x2="4" y2="24" />
+  <line x1="56" y1="24" x2="60" y2="24" />
+</svg>
