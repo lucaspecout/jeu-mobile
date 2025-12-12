@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc" fill="none" stroke="#ff6b3d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Icône photo sécurisée</title>
+  <desc id="desc">Cadre photo avec cadenas pour signaler la protection.</desc>
+  <rect x="10" y="20" width="44" height="26" rx="5" ry="5" />
+  <path d="M16 40l9-11 7 9 6-8 8 10" />
+  <circle cx="26" cy="28" r="3" />
+  <rect x="36" y="10" width="14" height="12" rx="3" ry="3" />
+  <path d="M43 10V6a5 5 0 00-10 0v4" />
+</svg>

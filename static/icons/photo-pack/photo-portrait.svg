@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc" fill="none" stroke="#ff6b3d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Icône portrait</title>
+  <desc id="desc">Cadre vertical avec silhouette de portrait stylisée.</desc>
+  <rect x="18" y="8" width="28" height="48" rx="5" ry="5" />
+  <circle cx="32" cy="26" r="7" />
+  <path d="M22 50c2-8 8-10 10-10s8 2 10 10" />
+  <line x1="18" y1="18" x2="12" y2="18" />
+  <line x1="46" y1="18" x2="52" y2="18" />
+</svg>

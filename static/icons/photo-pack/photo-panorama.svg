@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title desc" fill="none" stroke="#ff6b3d" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+  <title id="title">Icône panorama</title>
+  <desc id="desc">Bande panoramique légèrement incurvée avec paysage.</desc>
+  <path d="M8 18c12 6 36 6 48 0v28c-12 6-36 6-48 0V18z" />
+  <circle cx="44" cy="28" r="3" />
+  <path d="M14 40l8-8 6 6 8-10 10 12" />
+</svg>
