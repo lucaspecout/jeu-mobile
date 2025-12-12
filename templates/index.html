@@ -23,9 +23,22 @@
       <div class="scanline" aria-hidden="true"></div>
       <div class="topbar">
         <div class="topbar__spacer"></div>
-        <button class="profile-btn" id="profile-btn" aria-label="Ouvrir le profil">
-          <span class="avatar" id="profile-avatar"></span>
-        </button>
+        <div class="profile-menu" id="profile-menu-root">
+          <button class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
+            <span class="avatar" id="profile-avatar"></span>
+          </button>
+          <div class="profile-menu__dropdown hidden" id="profile-menu">
+            <div class="profile-menu__user">
+              <span class="avatar" id="menu-avatar"></span>
+              <div>
+                <p class="menu-username" id="menu-username">—</p>
+                <p class="menu-email" id="menu-email">—</p>
+              </div>
+            </div>
+            <button class="menu-item" id="menu-profile">Modifier mes informations</button>
+            <button class="menu-item danger" id="menu-logout">Déconnexion</button>
+          </div>
+        </div>
       </div>
       <header class="hero">
         <div class="hero__content">
@@ -58,7 +71,6 @@
               <h2>Profil connecté</h2>
               <p class="muted">Votre session est active. Le cockpit des missions reste séparé de l'écran d'authentification.</p>
             </div>
-            <button class="btn ghost" id="logout-btn">Déconnexion</button>
           </div>
           <div class="auth-grid">
             <div class="card card--glass status" id="status-card">
