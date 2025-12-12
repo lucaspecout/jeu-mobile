@@ -2,6 +2,7 @@ import os
 from datetime import datetime
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
+from sqlalchemy import inspect, text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -23,6 +24,7 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        ensure_avatar_column()
         bootstrap_levels()
 
     register_routes(app)
@@ -89,6 +91,22 @@ LEVEL_SEED = [
 ]
 
 AVATAR_CHOICES = {"alpha", "bravo", "charlie", "delta"}
+
+
+def ensure_avatar_column():
+    inspector = inspect(db.engine)
+    column_names = {column["name"] for column in inspector.get_columns("user")}
+    if "avatar" in column_names:
+        return
+
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        db.session.execute(text("ALTER TABLE user ADD COLUMN avatar VARCHAR(40) DEFAULT 'alpha'"))
+    else:
+        db.session.execute(
+            text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS avatar VARCHAR(40) DEFAULT \'alpha\'')
+        )
+    db.session.commit()
 
 
 def bootstrap_levels():
