@@ -28,14 +28,56 @@ const profileAvatar = qs('#profile-avatar');
 const profileAlert = qs('#profile-alert');
 const profileDeleteBtn = qs('#profile-delete');
 const avatarChips = qsa('#profile-avatars .avatar-chip');
+const wizardStepper = qs('#wizard-stepper');
+const wizardBody = qs('#wizard-body');
+const wizardNext = qs('#wizard-next');
+const wizardPrev = qs('#wizard-prev');
+const wizardTitle = qs('#wizard-title');
+const wizardDescription = qs('#wizard-description');
+const wizardCategory = qs('#wizard-category');
+const wizardIcons = qsa('#wizard-icons .icon-chip');
+const questionBuilder = qs('#question-builder');
+const addQuestionBtn = qs('#add-question');
+const saveQuestionnaireBtn = qs('#save-questionnaire');
+const wizardAlert = qs('#wizard-alert');
+const previewTitle = qs('#preview-title');
+const previewDescription = qs('#preview-description');
+const previewIcon = qs('#preview-icon');
+const previewMeta = qs('#preview-meta');
+const previewQuestions = qs('#preview-questions');
+const questionnaireCards = qs('#questionnaire-cards');
+const wizardSummary = qs('#wizard-summary');
 const AVATAR_EMOJIS = {
   alpha: '🛰️',
   bravo: '🚑',
   charlie: '🛟',
   delta: '🧭',
 };
+const ICON_EMOJIS = {
+  sparkles: '✨',
+  shield: '🛡️',
+  pulse: '⚡',
+  target: '🎯',
+  compass: '🧭',
+  medkit: '🧰',
+  default: '✨',
+};
+const QUESTION_TYPES = {
+  single: 'Réponse unique',
+  multiple: 'Choix multiples',
+  text: 'Réponse libre',
+};
+let wizardStep = 1;
 let currentUser = null;
 const logPanel = qs('#log-panel');
+let questionIdCounter = 1;
+let wizardState = {
+  title: 'Brief PSE terrain',
+  description: 'Ton aperçu évolue en direct : points, types de réponses et icône du formulaire.',
+  category: 'Général',
+  icon: 'sparkles',
+  questions: [],
+};
 
 function clearAuthState() {
   localStorage.removeItem('isAuthenticated');
@@ -327,10 +369,371 @@ function log(message) {
   while (logPanel.children.length > 6) logPanel.removeChild(logPanel.lastChild);
 }
 
+function defaultOptions(type) {
+  if (type === 'text') return [];
+  return [
+    { id: `${Date.now()}-a`, label: 'Réponse A', is_correct: true },
+    { id: `${Date.now()}-b`, label: 'Réponse B', is_correct: false },
+  ];
+}
+
+function createQuestion(type = 'single') {
+  const question = {
+    id: `q-${questionIdCounter++}`,
+    text: 'Nouvelle question',
+    type,
+    points: 5,
+    options: defaultOptions(type),
+  };
+  return question;
+}
+
+function setWizardAlert(message, isError = true) {
+  if (!wizardAlert) return;
+  wizardAlert.textContent = message;
+  wizardAlert.classList.toggle('hidden', !message);
+  wizardAlert.style.background = isError ? 'rgba(255,63,171,0.12)' : 'rgba(58,242,255,0.15)';
+}
+
+function setWizardStep(step) {
+  wizardStep = step;
+  if (wizardStepper) {
+    wizardStepper.querySelectorAll('.wizard__step').forEach((el) => {
+      const index = Number(el.dataset.step);
+      el.classList.toggle('wizard__step--active', index === wizardStep);
+      el.classList.toggle('wizard__step--done', index < wizardStep);
+    });
+  }
+  if (wizardBody) {
+    wizardBody.querySelectorAll('.wizard__panel').forEach((panel) => {
+      panel.classList.toggle('hidden', Number(panel.dataset.step) !== wizardStep);
+    });
+  }
+  if (wizardPrev) wizardPrev.disabled = wizardStep === 1;
+  if (wizardNext) wizardNext.classList.toggle('hidden', wizardStep === 3);
+  if (saveQuestionnaireBtn) saveQuestionnaireBtn.classList.toggle('hidden', wizardStep !== 3);
+}
+
+function updatePreview() {
+  if (!previewTitle || !previewDescription) return;
+  const totalPoints = wizardState.questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+  previewTitle.textContent = wizardState.title || 'Questionnaire sans titre';
+  previewDescription.textContent = wizardState.description || 'Prépare un parcours interactif pour tes équipes.';
+  if (previewIcon) previewIcon.textContent = ICON_EMOJIS[wizardState.icon] || ICON_EMOJIS.default;
+  if (previewMeta) {
+    previewMeta.innerHTML = '';
+    const categoryChip = document.createElement('span');
+    categoryChip.className = 'chip';
+    categoryChip.textContent = `Catégorie : ${wizardState.category}`;
+    const pointsChip = document.createElement('span');
+    pointsChip.className = 'chip';
+    pointsChip.textContent = `${totalPoints} point${totalPoints > 1 ? 's' : ''}`;
+    previewMeta.append(categoryChip, pointsChip);
+  }
+
+  if (previewQuestions) {
+    previewQuestions.innerHTML = '';
+    wizardState.questions.forEach((q, index) => {
+      const card = document.createElement('div');
+      card.className = 'preview-card';
+      card.innerHTML = `
+        <div class="preview-card__header">
+          <span class="chip chip--ghost">Q${index + 1}</span>
+          <span class="chip chip--ghost">${QUESTION_TYPES[q.type] || 'Libre'}</span>
+          <span class="chip chip--ghost">${q.points} pt</span>
+        </div>
+        <p class="label">${q.text || 'Question en attente'}</p>
+      `;
+      if (q.type !== 'text' && q.options?.length) {
+        const list = document.createElement('ul');
+        list.className = 'preview-card__options';
+        q.options.forEach((opt) => {
+          const li = document.createElement('li');
+          li.textContent = `${opt.is_correct ? '✅ ' : ''}${opt.label}`;
+          list.appendChild(li);
+        });
+        card.appendChild(list);
+      }
+      previewQuestions.appendChild(card);
+    });
+  }
+}
+
+function renderQuestion(question) {
+  const optionsHtml = question.options
+    .map(
+      (opt) => `
+        <div class="option-row" data-option="${opt.id}">
+          <input type="text" class="option-text" value="${opt.label || ''}" placeholder="Proposition"> 
+          <label class="option-check">
+            ${question.type === 'multiple'
+              ? `<input type="checkbox" class="option-correct" ${opt.is_correct ? 'checked' : ''}> Bonne réponse`
+              : `<input type="radio" name="correct-${question.id}" class="option-correct" ${opt.is_correct ? 'checked' : ''}> Bonne réponse`}
+          </label>
+          <button class="icon-btn remove-option" type="button" aria-label="Supprimer l'option">✖</button>
+        </div>
+      `,
+    )
+    .join('');
+
+  const optionsBlock = `
+    <div class="option-list" ${question.type === 'text' ? 'hidden' : ''}>
+      ${optionsHtml}
+      <button class="btn ghost add-option" type="button">Ajouter une option</button>
+    </div>`;
+
+  return `
+    <article class="question-card" data-question="${question.id}">
+      <div class="question-card__header">
+        <div>
+          <p class="eyebrow">Question</p>
+          <input class="question-text" value="${question.text}" />
+        </div>
+        <div class="question-card__actions">
+          <label class="chips-inline">
+            <span class="chip">Points</span>
+            <input class="question-points" type="number" min="0" value="${question.points}" />
+          </label>
+          <select class="question-type">
+            ${Object.entries(QUESTION_TYPES)
+              .map(([value, label]) => `<option value="${value}" ${question.type === value ? 'selected' : ''}>${label}</option>`)
+              .join('')}
+          </select>
+          <button class="icon-btn remove-question" type="button" aria-label="Supprimer">🗑️</button>
+        </div>
+      </div>
+      ${optionsBlock}
+    </article>
+  `;
+}
+
+function renderQuestions() {
+  if (!questionBuilder) return;
+  questionBuilder.innerHTML = wizardState.questions.map((q) => renderQuestion(q)).join('');
+  updatePreview();
+}
+
+function addQuestion() {
+  wizardState.questions.push(createQuestion('single'));
+  renderQuestions();
+}
+
+function updateQuestionnaireSummary() {
+  if (!wizardSummary) return;
+  const totalPoints = wizardState.questions.reduce((sum, q) => sum + (Number(q.points) || 0), 0);
+  wizardSummary.innerHTML = `
+    <ul class="summary__list">
+      <li><strong>Titre :</strong> ${wizardState.title || '—'}</li>
+      <li><strong>Catégorie :</strong> ${wizardState.category}</li>
+      <li><strong>Icône :</strong> ${ICON_EMOJIS[wizardState.icon] || '✨'}</li>
+      <li><strong>Questions :</strong> ${wizardState.questions.length}</li>
+      <li><strong>Points cumulés :</strong> ${totalPoints}</li>
+    </ul>
+  `;
+}
+
+function handleWizardNavigation() {
+  if (wizardNext) {
+    wizardNext.addEventListener('click', () => {
+      if (wizardStep < 3) setWizardStep(wizardStep + 1);
+      if (wizardStep === 3) updateQuestionnaireSummary();
+    });
+  }
+
+  if (wizardPrev) {
+    wizardPrev.addEventListener('click', () => {
+      if (wizardStep > 1) setWizardStep(wizardStep - 1);
+    });
+  }
+}
+
+function handleWizardInputs() {
+  if (wizardTitle) {
+    wizardTitle.addEventListener('input', (evt) => {
+      wizardState.title = evt.target.value;
+      updatePreview();
+    });
+  }
+  if (wizardDescription) {
+    wizardDescription.addEventListener('input', (evt) => {
+      wizardState.description = evt.target.value;
+      updatePreview();
+    });
+  }
+  if (wizardCategory) {
+    wizardCategory.addEventListener('change', (evt) => {
+      wizardState.category = evt.target.value;
+      updatePreview();
+    });
+  }
+  wizardIcons.forEach((btn) => {
+    btn.addEventListener('click', () => {
+      wizardIcons.forEach((b) => b.classList.remove('active'));
+      btn.classList.add('active');
+      wizardState.icon = btn.dataset.icon;
+      updatePreview();
+    });
+  });
+
+  if (addQuestionBtn) addQuestionBtn.addEventListener('click', () => addQuestion());
+
+  if (questionBuilder) {
+    questionBuilder.addEventListener('input', (evt) => {
+      const card = evt.target.closest('.question-card');
+      if (!card) return;
+      const id = card.dataset.question;
+      const question = wizardState.questions.find((q) => q.id === id);
+      if (!question) return;
+
+      if (evt.target.classList.contains('question-text')) {
+        question.text = evt.target.value;
+      }
+      if (evt.target.classList.contains('question-points')) {
+        question.points = Math.max(0, Number(evt.target.value) || 0);
+        evt.target.value = question.points;
+      }
+      if (evt.target.classList.contains('question-type')) {
+        question.type = evt.target.value;
+        question.options = defaultOptions(question.type);
+        renderQuestions();
+        return;
+      }
+      if (evt.target.classList.contains('option-text')) {
+        const optRow = evt.target.closest('.option-row');
+        const optId = optRow?.dataset.option;
+        const opt = question.options.find((o) => `${o.id}` === `${optId}`);
+        if (opt) opt.label = evt.target.value;
+      }
+      updatePreview();
+    });
+
+    questionBuilder.addEventListener('change', (evt) => {
+      if (!evt.target.classList.contains('option-correct')) return;
+      const card = evt.target.closest('.question-card');
+      const id = card?.dataset.question;
+      const question = wizardState.questions.find((q) => q.id === id);
+      if (!question) return;
+      const optRow = evt.target.closest('.option-row');
+      const optId = optRow?.dataset.option;
+      if (question.type === 'single') {
+        question.options.forEach((o) => { o.is_correct = false; });
+        const opt = question.options.find((o) => `${o.id}` === `${optId}`);
+        if (opt) opt.is_correct = true;
+      } else {
+        const opt = question.options.find((o) => `${o.id}` === `${optId}`);
+        if (opt) opt.is_correct = evt.target.checked;
+      }
+      updatePreview();
+    });
+
+    questionBuilder.addEventListener('click', (evt) => {
+      const card = evt.target.closest('.question-card');
+      if (!card) return;
+      const id = card.dataset.question;
+      const questionIndex = wizardState.questions.findIndex((q) => q.id === id);
+      if (questionIndex === -1) return;
+
+      if (evt.target.classList.contains('remove-question')) {
+        wizardState.questions.splice(questionIndex, 1);
+        renderQuestions();
+        return;
+      }
+
+      if (evt.target.classList.contains('add-option')) {
+        wizardState.questions[questionIndex].options.push({
+          id: `${Date.now()}-${Math.random()}`,
+          label: 'Nouvelle option',
+          is_correct: false,
+        });
+        renderQuestions();
+        return;
+      }
+
+      if (evt.target.classList.contains('remove-option')) {
+        const optRow = evt.target.closest('.option-row');
+        const optId = optRow?.dataset.option;
+        wizardState.questions[questionIndex].options = wizardState.questions[questionIndex].options.filter(
+          (opt) => `${opt.id}` !== `${optId}`,
+        );
+        renderQuestions();
+      }
+    });
+  }
+}
+
+async function saveQuestionnaire() {
+  if (!saveQuestionnaireBtn) return;
+  saveQuestionnaireBtn.addEventListener('click', async () => {
+    try {
+      const payload = {
+        title: wizardState.title,
+        description: wizardState.description,
+        category: wizardState.category,
+        icon: wizardState.icon,
+        questions: wizardState.questions.map((q) => ({
+          text: q.text,
+          type: q.type,
+          points: q.points,
+          options: q.options,
+        })),
+      };
+      await postJson('/api/questionnaires', payload);
+      setWizardAlert('Questionnaire publié et enregistré dans la bibliothèque.', false);
+      await refreshQuestionnaires();
+    } catch (err) {
+      setWizardAlert(err.message);
+    }
+  });
+}
+
+async function refreshQuestionnaires() {
+  if (!questionnaireCards) return;
+  try {
+    const res = await fetch('/api/questionnaires');
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    questionnaireCards.innerHTML = '';
+    data.questionnaires.forEach((q) => {
+      const card = document.createElement('article');
+      card.className = 'questionnaire-card';
+      card.innerHTML = `
+        <div class="questionnaire-card__icon">${ICON_EMOJIS[q.icon] || ICON_EMOJIS.default}</div>
+        <div class="questionnaire-card__body">
+          <p class="eyebrow">${q.category}</p>
+          <h4>${q.title}</h4>
+          <p class="muted">${q.description || 'Pas de description'}</p>
+          <div class="chip-row">
+            <span class="chip">${q.questions ? q.questions.length : 0} question(s)</span>
+            <span class="chip">${new Date(q.created_at).toLocaleDateString()}</span>
+          </div>
+        </div>
+      `;
+      questionnaireCards.appendChild(card);
+    });
+  } catch (err) {
+    questionnaireCards.innerHTML = '<p class="muted">Impossible de charger les questionnaires.</p>';
+  }
+}
+
 function setupSimulator() {
   const simulateBtn = qs('#simulate-btn');
   if (!simulateBtn) return;
   simulateBtn.addEventListener('click', () => animateSuccess('Simulation réussie : animation déclenchée.'));
+}
+
+function initQuestionnaireWizard() {
+  if (!wizardBody) return;
+  wizardState.questions = [createQuestion('single')];
+  if (wizardTitle) wizardTitle.value = wizardState.title;
+  if (wizardDescription) wizardDescription.value = wizardState.description;
+  if (wizardCategory) wizardCategory.value = wizardState.category;
+  wizardIcons.forEach((btn) => btn.classList.toggle('active', btn.dataset.icon === wizardState.icon));
+  setWizardStep(1);
+  renderQuestions();
+  handleWizardInputs();
+  handleWizardNavigation();
+  saveQuestionnaire();
+  refreshQuestionnaires();
 }
 
 async function init() {
@@ -340,6 +743,8 @@ async function init() {
   setupProfileMenu();
   setupTopbarToggle();
   setupSimulator();
+  initQuestionnaireWizard();
+  await refreshQuestionnaires();
   await refreshMenu();
   log('Interface initialisée avec GSAP et Flask.');
 }
