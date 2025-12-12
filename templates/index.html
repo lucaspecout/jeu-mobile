@@ -96,45 +96,6 @@
       </header>
 
       <main class="shell">
-        <section class="panel panel--frost">
-          <div class="panel__header">
-            <div>
-              <p class="eyebrow">Identité</p>
-              <h2>Profil connecté</h2>
-              <p class="muted">Votre session est active et synchronisée. Naviguez via la barre supérieure pour ouvrir chaque module.</p>
-            </div>
-          </div>
-          <div class="auth-grid">
-            <div class="card card--glass status" id="status-card">
-              <p class="eyebrow">Statut réseau</p>
-              <h3 id="status-title">En cours de synchronisation</h3>
-              <p class="muted" id="status-sub">Chargement des données utilisateur et des missions.</p>
-              <div class="status__grid">
-                <div>
-                  <p class="label">Utilisateur</p>
-                  <p id="status-user">—</p>
-                </div>
-                <div>
-                  <p class="label">Progrès</p>
-                  <p id="status-progress">—</p>
-                </div>
-                <div>
-                  <p class="label">Sessions actives</p>
-                  <p class="pulse">Serveur prêt</p>
-                </div>
-              </div>
-              <div class="alert hidden" id="app-alert"></div>
-            </div>
-
-            <div class="card card--glass">
-              <p class="eyebrow">Navigation</p>
-              <h3>Modules dédiés</h3>
-              <p class="muted">Chaque bouton du haut ouvre une page dédiée : missions, mini-jeu ou questionnaire.</p>
-              <p class="muted">Le bouton actif reste en surbrillance pour savoir où vous vous trouvez.</p>
-            </div>
-          </div>
-        </section>
-
         {% if page == 'home' %}
         <section class="panel" aria-label="Tableau de bord opérations">
           <div class="panel__header">
