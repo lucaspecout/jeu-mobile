@@ -10,6 +10,8 @@ const statusProgress = qs('#status-progress');
 const profileBtn = qs('#profile-btn');
 const profileMenu = qs('#profile-menu');
 const profileMenuRoot = qs('#profile-menu-root');
+const topbar = qs('.topbar');
+const topbarToggle = qs('#topbar-toggle');
 const menuProfileBtn = qs('#menu-profile');
 const menuLogoutBtn = qs('#menu-logout');
 const menuUsername = qs('#menu-username');
@@ -24,6 +26,7 @@ const profilePassword = qs('#profile-password');
 const profileAvatarValue = qs('#profile-avatar-value');
 const profileAvatar = qs('#profile-avatar');
 const profileAlert = qs('#profile-alert');
+const profileDeleteBtn = qs('#profile-delete');
 const avatarChips = qsa('#profile-avatars .avatar-chip');
 let currentUser = null;
 const logPanel = qs('#log-panel');
@@ -207,6 +210,23 @@ function setupProfileDrawer() {
       }
     });
   }
+
+  if (profileDeleteBtn) {
+    profileDeleteBtn.addEventListener('click', async () => {
+      clearProfileAlert();
+      const confirmDelete = window.confirm('Supprimer définitivement le compte et les missions associées ?');
+      if (!confirmDelete) return;
+
+      try {
+        const res = await fetch('/api/profile', { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        clearAuthState();
+        window.location.href = '/auth';
+      } catch (err) {
+        setProfileAlert('Impossible de supprimer le compte.');
+      }
+    });
+  }
 }
 
 function setupProfileMenu() {
@@ -258,6 +278,24 @@ function setupMenuActions() {
   });
 }
 
+function setupTopbarToggle() {
+  if (!topbar || !topbarToggle || !profileMenuRoot) return;
+
+  topbarToggle.addEventListener('click', () => {
+    const isOpen = topbar.classList.toggle('topbar--open');
+    topbarToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+  });
+
+  document.addEventListener('click', (evt) => {
+    if (!topbar.classList.contains('topbar--open')) return;
+    const withinTopbar = topbar.contains(evt.target);
+    if (!withinTopbar) {
+      topbar.classList.remove('topbar--open');
+      topbarToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+}
+
 function animateSuccess(message) {
   if (qs('#beam')) {
     gsap.fromTo('#beam', { opacity: 0 }, { opacity: 0.6, duration: 0.6, ease: 'power2.out' });
@@ -291,6 +329,7 @@ async function init() {
   setupProfileChips();
   setupProfileDrawer();
   setupProfileMenu();
+  setupTopbarToggle();
   setupSimulator();
   await refreshMenu();
   log('Interface initialisée avec GSAP et Flask.');

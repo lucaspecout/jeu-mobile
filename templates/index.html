@@ -23,7 +23,11 @@
       <div class="grid-bg" aria-hidden="true"></div>
       <div class="scanline" aria-hidden="true"></div>
       <div class="topbar">
-        <nav class="topbar__nav" aria-label="Navigation principale">
+        <button class="topbar__toggle" id="topbar-toggle" aria-expanded="false" aria-controls="topbar-nav">
+          <span class="topbar__toggle-icon" aria-hidden="true">☰</span>
+          <span class="sr-only">Ouvrir le menu</span>
+        </button>
+        <nav class="topbar__nav" id="topbar-nav" aria-label="Navigation principale">
           <a class="topbar__link {{ 'topbar__link--active' if page == 'home' else '' }}" href="{{ url_for('home') }}">Accueil</a>
           <a class="topbar__link {{ 'topbar__link--active' if page == 'missions' else '' }}" href="{{ url_for('missions_page') }}">Missions</a>
           <a class="topbar__link {{ 'topbar__link--active' if page == 'mini-game' else '' }}" href="{{ url_for('mini_game_page') }}">Petit jeu</a>
@@ -313,6 +317,7 @@
           <input type="hidden" name="avatar" id="profile-avatar-value" value="alpha">
         </div>
         <button class="btn primary" type="submit">Mettre à jour</button>
+        <button class="btn danger" type="button" id="profile-delete">Supprimer mon compte</button>
         <div class="alert hidden" id="profile-alert"></div>
       </form>
     </aside>
