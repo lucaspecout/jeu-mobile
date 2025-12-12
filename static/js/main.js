@@ -248,7 +248,7 @@ function renderLevel(level) {
     <p class="desc">${level.description}</p>
     <p class="difficulty">${level.difficulty.toUpperCase()}</p>
     <div class="launch">
-      <button class="btn primary" data-level="${level.id}">Lancer</button>
+      <button class="btn primary" data-level="${level.id}" data-slug="${level.slug}">Lancer</button>
       <span class="chip">${level.progress ? level.progress.status : 'Nouveau'}</span>
     </div>
   `;
@@ -374,10 +374,14 @@ function setupMenuActions() {
     const btn = evt.target.closest('button[data-level]');
     if (!btn) return;
     const levelId = parseInt(btn.dataset.level, 10);
+    const slug = btn.dataset.slug;
     animateSuccess(`Mission ${levelId} lancée`);
     try {
       await postJson(`/api/progress/${levelId}`, { status: 'en_cours', score: Math.floor(Math.random() * 100) });
       await refreshMenu();
+      if (slug) {
+        window.location.href = `/mission/${slug}`;
+      }
     } catch (err) {
       setAlert(err.message);
     }
