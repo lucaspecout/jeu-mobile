@@ -67,20 +67,32 @@
                     <p class="label">Avatar</p>
                     <div class="avatar-picker__grid">
                       <button type="button" class="avatar-chip active" data-avatar="alpha">
-                        <span class="avatar avatar--alpha"></span>
-                        <span>Alpha</span>
+                        <span class="avatar avatar--alpha">{{ avatar_emojis.get('alpha') }}</span>
+                        <div class="avatar-chip__info">
+                          <p class="label">Satellite</p>
+                          <p class="muted">Toujours connecté au flux central.</p>
+                        </div>
                       </button>
                       <button type="button" class="avatar-chip" data-avatar="bravo">
-                        <span class="avatar avatar--bravo"></span>
-                        <span>Bravo</span>
+                        <span class="avatar avatar--bravo">{{ avatar_emojis.get('bravo') }}</span>
+                        <div class="avatar-chip__info">
+                          <p class="label">Équipe secours</p>
+                          <p class="muted">Réponse rapide et coordonnée.</p>
+                        </div>
                       </button>
                       <button type="button" class="avatar-chip" data-avatar="charlie">
-                        <span class="avatar avatar--charlie"></span>
-                        <span>Charlie</span>
+                        <span class="avatar avatar--charlie">{{ avatar_emojis.get('charlie') }}</span>
+                        <div class="avatar-chip__info">
+                          <p class="label">Bouée</p>
+                          <p class="muted">Protection et assistance immédiate.</p>
+                        </div>
                       </button>
                       <button type="button" class="avatar-chip" data-avatar="delta">
-                        <span class="avatar avatar--delta"></span>
-                        <span>Delta</span>
+                        <span class="avatar avatar--delta">{{ avatar_emojis.get('delta') }}</span>
+                        <div class="avatar-chip__info">
+                          <p class="label">Boussole</p>
+                          <p class="muted">Orientation précise vers l'objectif.</p>
+                        </div>
                       </button>
                     </div>
                     <input type="hidden" name="avatar" id="avatar-choice" value="alpha">

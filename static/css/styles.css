@@ -193,11 +193,23 @@ body {
 .avatar-picker__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
 .avatar-chip { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: rgba(255,255,255,0.03); color: var(--text); cursor: pointer; transition: 0.2s ease; }
 .avatar-chip.active { box-shadow: var(--glow); background: linear-gradient(135deg, rgba(255,107,61,0.22), rgba(255,44,85,0.18)); }
-.avatar { width: 32px; height: 32px; border-radius: 50%; display: inline-block; border: 1px solid var(--border); box-shadow: var(--glow); }
-.avatar--alpha { background: radial-gradient(circle at 30% 30%, #ff6b3d, #251018); }
-.avatar--bravo { background: radial-gradient(circle at 40% 30%, #ff2c55, #1c0d23); }
-.avatar--charlie { background: radial-gradient(circle at 60% 40%, #ffd166, #26140e); }
-.avatar--delta { background: radial-gradient(circle at 50% 50%, #7bdff2, #0c1a26); }
+.avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  box-shadow: var(--glow);
+  font-size: 18px;
+  background: rgba(255, 255, 255, 0.06);
+}
+.avatar--alpha { background: linear-gradient(145deg, rgba(58, 242, 255, 0.16), rgba(94, 120, 255, 0.16)); }
+.avatar--bravo { background: linear-gradient(145deg, rgba(255, 107, 61, 0.18), rgba(255, 44, 85, 0.18)); }
+.avatar--charlie { background: linear-gradient(145deg, rgba(255, 209, 102, 0.18), rgba(255, 140, 66, 0.16)); }
+.avatar--delta { background: linear-gradient(145deg, rgba(123, 223, 242, 0.18), rgba(12, 26, 38, 0.24)); }
+.avatar-chip__info { display: grid; gap: 4px; text-align: left; }
 .hidden { display: none !important; }
 
 .sr-only {

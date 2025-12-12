@@ -28,6 +28,12 @@ const profileAvatar = qs('#profile-avatar');
 const profileAlert = qs('#profile-alert');
 const profileDeleteBtn = qs('#profile-delete');
 const avatarChips = qsa('#profile-avatars .avatar-chip');
+const AVATAR_EMOJIS = {
+  alpha: '🛰️',
+  bravo: '🚑',
+  charlie: '🛟',
+  delta: '🧭',
+};
 let currentUser = null;
 const logPanel = qs('#log-panel');
 
@@ -48,8 +54,11 @@ function clearAlert() {
 
 function applyAvatar(target, avatar) {
   if (!target) return;
+  const variant = avatar || 'alpha';
   target.classList.remove('avatar--alpha', 'avatar--bravo', 'avatar--charlie', 'avatar--delta');
-  target.classList.add(`avatar--${avatar || 'alpha'}`);
+  target.classList.add(`avatar--${variant}`);
+  target.dataset.avatar = variant;
+  target.textContent = AVATAR_EMOJIS[variant] || AVATAR_EMOJIS.alpha;
 }
 
 function updateStatus(user, progressCount) {

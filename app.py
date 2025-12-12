@@ -91,6 +91,12 @@ LEVEL_SEED = [
 ]
 
 AVATAR_CHOICES = {"alpha", "bravo", "charlie", "delta"}
+AVATAR_EMOJIS = {
+    "alpha": "🛰️",
+    "bravo": "🚑",
+    "charlie": "🛟",
+    "delta": "🧭",
+}
 
 
 def ensure_avatar_column():
@@ -218,6 +224,7 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("auth"))
         context = build_dashboard_context(user)
         context["current_page"] = page
+        context["avatar_emojis"] = AVATAR_EMOJIS
         return render_template("index.html", **context)
 
     @app.route("/")
@@ -241,7 +248,7 @@ def register_routes(app: Flask) -> None:
         user = current_user()
         if user:
             return redirect(url_for("home"))
-        return render_template("auth.html")
+        return render_template("auth.html", avatar_emojis=AVATAR_EMOJIS)
 
     @app.route("/api/register", methods=["POST"])
     def api_register():

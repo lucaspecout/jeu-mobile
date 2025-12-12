@@ -36,13 +36,13 @@
         <div class="topbar__spacer"></div>
         <div class="profile-menu" id="profile-menu-root">
           <button class="profile-btn" id="profile-btn" aria-haspopup="true" aria-expanded="false">
-            <span class="avatar" id="profile-avatar"></span>
+            <span class="avatar" id="profile-avatar" data-avatar="{{ user.avatar if user else 'alpha' }}">{{ avatar_emojis.get(user.avatar if user else 'alpha', '🛰️') }}</span>
             <span class="profile-btn__label">Mon compte</span>
             <span class="profile-btn__chevron" aria-hidden="true">▾</span>
           </button>
           <div class="profile-menu__dropdown hidden" id="profile-menu">
             <div class="profile-menu__user">
-              <span class="avatar" id="menu-avatar"></span>
+              <span class="avatar" id="menu-avatar" data-avatar="{{ user.avatar if user else 'alpha' }}">{{ avatar_emojis.get(user.avatar if user else 'alpha', '🛰️') }}</span>
               <div>
                 <p class="menu-username" id="menu-username">—</p>
                 <p class="menu-email" id="menu-email">—</p>
@@ -178,7 +178,7 @@
                     {% for entry in dashboard_stats.leaderboard %}
                     <tr>
                       <td class="scoreboard__user">
-                        <span class="avatar avatar--{{ entry.avatar }}"></span>
+                        <span class="avatar" data-avatar="{{ entry.avatar }}">{{ avatar_emojis.get(entry.avatar, '🛰️') }}</span>
                         <span>{{ entry.username }}</span>
                       </td>
                       <td>{{ entry.missions }}</td>
@@ -280,7 +280,7 @@
         <div>
           <p class="eyebrow">Profil</p>
           <h2>Identité pilote</h2>
-          <p class="muted">Met à jour tes infos ou change d'avatar.</p>
+          <p class="muted">Met à jour tes infos ou choisis un emoji de profil.</p>
         </div>
         <button class="btn ghost" id="close-profile">Fermer</button>
       </div>
@@ -298,20 +298,32 @@
           <p class="label">Avatar</p>
           <div class="avatar-picker__grid" id="profile-avatars">
             <button type="button" class="avatar-chip" data-avatar="alpha">
-              <span class="avatar avatar--alpha"></span>
-              <span>Alpha</span>
+              <span class="avatar avatar--alpha">{{ avatar_emojis.get('alpha') }}</span>
+              <div class="avatar-chip__info">
+                <p class="label">Satellite</p>
+                <p class="muted">Toujours connecté au flux central.</p>
+              </div>
             </button>
             <button type="button" class="avatar-chip" data-avatar="bravo">
-              <span class="avatar avatar--bravo"></span>
-              <span>Bravo</span>
+              <span class="avatar avatar--bravo">{{ avatar_emojis.get('bravo') }}</span>
+              <div class="avatar-chip__info">
+                <p class="label">Équipe secours</p>
+                <p class="muted">Réponse rapide et coordonnée.</p>
+              </div>
             </button>
             <button type="button" class="avatar-chip" data-avatar="charlie">
-              <span class="avatar avatar--charlie"></span>
-              <span>Charlie</span>
+              <span class="avatar avatar--charlie">{{ avatar_emojis.get('charlie') }}</span>
+              <div class="avatar-chip__info">
+                <p class="label">Bouée</p>
+                <p class="muted">Protection et assistance immédiate.</p>
+              </div>
             </button>
             <button type="button" class="avatar-chip" data-avatar="delta">
-              <span class="avatar avatar--delta"></span>
-              <span>Delta</span>
+              <span class="avatar avatar--delta">{{ avatar_emojis.get('delta') }}</span>
+              <div class="avatar-chip__info">
+                <p class="label">Boussole</p>
+                <p class="muted">Orientation précise vers l'objectif.</p>
+              </div>
             </button>
           </div>
           <input type="hidden" name="avatar" id="profile-avatar-value" value="alpha">
