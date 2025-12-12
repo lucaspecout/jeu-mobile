@@ -32,6 +32,9 @@
           <a class="topbar__link {{ 'topbar__link--active' if page == 'missions' else '' }}" href="{{ url_for('missions_page') }}">Missions</a>
           <a class="topbar__link {{ 'topbar__link--active' if page == 'mini-game' else '' }}" href="{{ url_for('mini_game_page') }}">Petit jeu</a>
           <a class="topbar__link {{ 'topbar__link--active' if page == 'questionnaire' else '' }}" href="{{ url_for('questionnaire_page') }}">Questionnaire</a>
+          {% if user.role == 'admin' %}
+          <a class="topbar__link {{ 'topbar__link--active' if page == 'admin' else '' }}" href="{{ url_for('admin_page') }}">Admin</a>
+          {% endif %}
         </nav>
         <div class="topbar__spacer"></div>
         <div class="profile-menu" id="profile-menu-root">
@@ -70,6 +73,10 @@
           <p class="hero__eyebrow">Retour</p>
           <h1>Zone questionnaire</h1>
           <p class="hero__tagline">Ouvre le formulaire et collecte les retours de mission.</p>
+          {% elif page == 'admin' %}
+          <p class="hero__eyebrow">Administration</p>
+          <h1>Console Protec</h1>
+          <p class="hero__tagline">Gestion des rôles, création de formateurs et contrôle des accès.</p>
           {% else %}
           <p class="hero__eyebrow">Centre</p>
           <h1>Protec Rescue 38</h1>
@@ -233,6 +240,53 @@
             <div class="logs" id="log-panel"></div>
           </div>
         </section>
+        {% elif page == 'admin' %}
+        <section class="panel" id="admin-panel">
+          <div class="panel__header">
+            <div>
+              <p class="eyebrow">Accès admin</p>
+              <h2>Gestion des comptes</h2>
+              <p class="muted">Attribue ou retire les rôles administrateur et formateur. Le compte par défaut est admin / admin.</p>
+            </div>
+            <span class="chip chip--pulse">Sécurisé</span>
+          </div>
+          <div class="table-wrapper">
+            <table class="scoreboard admin-table">
+              <thead>
+                <tr>
+                  <th>Profil</th>
+                  <th>E-mail</th>
+                  <th>Rôle</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="admin-users-body">
+                {% for managed_user in users %}
+                <tr data-user-id="{{ managed_user.id }}">
+                  <td class="scoreboard__user">
+                    <span class="avatar" data-avatar="{{ managed_user.avatar }}">{{ avatar_emojis.get(managed_user.avatar, '🛰️') }}</span>
+                    <span>{{ managed_user.username }}</span>
+                  </td>
+                  <td>{{ managed_user.email }}</td>
+                  <td>
+                    <select class="role-select">
+                      <option value="participant" {{ 'selected' if managed_user.role == 'participant' else '' }}>Participant</option>
+                      <option value="formateur" {{ 'selected' if managed_user.role == 'formateur' else '' }}>Formateur</option>
+                      <option value="admin" {{ 'selected' if managed_user.role == 'admin' else '' }}>Admin</option>
+                    </select>
+                  </td>
+                  <td><button class="btn secondary save-role" type="button">Mettre à jour</button></td>
+                </tr>
+                {% else %}
+                <tr>
+                  <td colspan="4" class="muted">Aucun compte enregistré pour le moment.</td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="alert hidden" id="admin-alert"></div>
+        </section>
         {% elif page == 'missions' %}
         <section class="panel" id="missions">
           <div class="panel__header">
@@ -334,8 +388,12 @@
       </form>
     </aside>
 
-    <script>const LEVELS = {{ levels|tojson }};</script>
+    <script>
+      const LEVELS = {{ levels|tojson }};
+      window.AVATAR_EMOJIS = {{ avatar_emojis|tojson }};
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
   </body>
 </html>
