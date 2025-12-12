@@ -25,7 +25,9 @@ def create_app():
     with app.app_context():
         db.create_all()
         ensure_avatar_column()
+        ensure_role_column()
         bootstrap_levels()
+        ensure_admin_account()
 
     register_routes(app)
     return app
@@ -36,6 +38,7 @@ class User(db.Model):
     username = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    role = db.Column(db.String(20), nullable=False, default="participant")
     avatar = db.Column(db.String(40), default="alpha")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     progress = db.relationship("Progress", back_populates="user", cascade="all, delete")
@@ -97,6 +100,7 @@ AVATAR_EMOJIS = {
     "charlie": "🛟",
     "delta": "🧭",
 }
+USER_ROLES = {"participant", "formateur", "admin"}
 
 
 def ensure_avatar_column():
@@ -112,6 +116,38 @@ def ensure_avatar_column():
         db.session.execute(
             text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS avatar VARCHAR(40) DEFAULT \'alpha\'')
         )
+    db.session.commit()
+
+
+def ensure_role_column():
+    inspector = inspect(db.engine)
+    column_names = {column["name"] for column in inspector.get_columns("user")}
+    if "role" in column_names:
+        return
+
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        db.session.execute(text("ALTER TABLE user ADD COLUMN role VARCHAR(20) NOT NULL DEFAULT 'participant'"))
+    else:
+        db.session.execute(
+            text('ALTER TABLE "user" ADD COLUMN IF NOT EXISTS role VARCHAR(20) NOT NULL DEFAULT \'participant\'')
+        )
+    db.session.commit()
+
+
+def ensure_admin_account():
+    admin_email = "admin@protec.local"
+    admin_user = User.query.filter_by(email=admin_email).first()
+    password_hash = generate_password_hash("admin")
+
+    if admin_user:
+        admin_user.password_hash = password_hash
+        admin_user.role = "admin"
+    else:
+        admin_user = User(
+            username="Admin", email=admin_email, password_hash=password_hash, avatar="alpha", role="admin"
+        )
+        db.session.add(admin_user)
     db.session.commit()
 
 
@@ -149,8 +185,18 @@ def serialize_user(user: User):
     return {
         "username": user.username,
         "email": user.email,
+        "role": user.role,
         "avatar": user.avatar,
     }
+
+
+def serialize_user_admin(user: User):
+    data = serialize_user(user)
+    data.update({
+        "id": user.id,
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    })
+    return data
 
 
 def current_user():
@@ -218,6 +264,14 @@ def register_routes(app: Flask) -> None:
         }
         return {"levels": levels, "user": user, "dashboard_stats": dashboard_stats}
 
+    def ensure_admin_access():
+        user = current_user()
+        if not user:
+            return user, (jsonify({"error": "Authentification requise"}), 401)
+        if user.role != "admin":
+            return user, (jsonify({"error": "Accès réservé à l'administrateur"}), 403)
+        return user, None
+
     def render_shell(page: str):
         user = current_user()
         if not user:
@@ -225,6 +279,8 @@ def register_routes(app: Flask) -> None:
         context = build_dashboard_context(user)
         context["current_page"] = page
         context["avatar_emojis"] = AVATAR_EMOJIS
+        if page == "admin" and user.role == "admin":
+            context["users"] = User.query.order_by(User.created_at.desc()).all()
         return render_template("index.html", **context)
 
     @app.route("/")
@@ -242,6 +298,15 @@ def register_routes(app: Flask) -> None:
     @app.route("/questionnaire")
     def questionnaire_page():
         return render_shell("questionnaire")
+
+    @app.route("/admin")
+    def admin_page():
+        user = current_user()
+        if not user:
+            return redirect(url_for("auth"))
+        if user.role != "admin":
+            return redirect(url_for("home"))
+        return render_shell("admin")
 
     @app.route("/auth")
     def auth():
@@ -370,6 +435,29 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         session.pop("user_id", None)
         return jsonify({"ok": True})
+
+    @app.route("/api/admin/users")
+    def api_admin_users():
+        _, error = ensure_admin_access()
+        if error:
+            return error
+        users = User.query.order_by(User.created_at.desc()).all()
+        return jsonify({"users": [serialize_user_admin(u) for u in users]})
+
+    @app.route("/api/admin/users/<int:user_id>", methods=["PUT"])
+    def api_admin_update_user(user_id: int):
+        _, error = ensure_admin_access()
+        if error:
+            return error
+        data = request.get_json() or {}
+        role = (data.get("role") or "").lower()
+        if role not in USER_ROLES:
+            return jsonify({"error": "Rôle invalide"}), 400
+
+        user = User.query.get_or_404(user_id)
+        user.role = role
+        db.session.commit()
+        return jsonify(serialize_user_admin(user))
 
 
 app = create_app()
