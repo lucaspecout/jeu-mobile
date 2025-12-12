@@ -32,7 +32,13 @@ function renderAdminRow(user) {
             .join('')}
         </select>
       </td>
-      <td><button class="btn secondary save-role" type="button">Mettre à jour</button></td>
+      <td>
+        <input class="password-input" type="password" placeholder="Nouveau mot de passe" minlength="8" aria-label="Nouveau mot de passe">
+      </td>
+      <td class="admin-actions">
+        <button class="btn secondary save-role" type="button">Mettre à jour</button>
+        <button class="btn danger delete-user" type="button">Supprimer</button>
+      </td>
     </tr>
   `;
 }
@@ -47,7 +53,7 @@ async function refreshAdminUsers() {
     }
     const data = await res.json();
     if (!data.users.length) {
-      adminTableBody.innerHTML = '<tr><td colspan="4" class="muted">Aucun compte enregistré pour le moment.</td></tr>';
+      adminTableBody.innerHTML = '<tr><td colspan="5" class="muted">Aucun compte enregistré pour le moment.</td></tr>';
       return;
     }
     adminTableBody.innerHTML = data.users
@@ -58,13 +64,13 @@ async function refreshAdminUsers() {
   }
 }
 
-async function updateUserRole(userId, role, triggerBtn) {
+async function updateUser(userId, role, password, triggerBtn) {
   try {
     triggerBtn?.setAttribute('disabled', 'true');
     const res = await fetch(`/api/admin/users/${userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role }),
+      body: JSON.stringify({ role, password }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -79,19 +85,49 @@ async function updateUserRole(userId, role, triggerBtn) {
   }
 }
 
+async function deleteUser(userId, triggerBtn) {
+  const confirmed = window.confirm('Supprimer ce compte ?');
+  if (!confirmed) return;
+  try {
+    triggerBtn?.setAttribute('disabled', 'true');
+    const res = await fetch(`/api/admin/users/${userId}`, { method: 'DELETE' });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Suppression impossible');
+    }
+    await refreshAdminUsers();
+    setAdminAlert('Compte supprimé', false);
+  } catch (err) {
+    setAdminAlert(err.message);
+  } finally {
+    triggerBtn?.removeAttribute('disabled');
+  }
+}
+
 function setupAdminPanel() {
   if (!adminTableBody) return;
   refreshAdminUsers();
 
   adminTableBody.addEventListener('click', (evt) => {
     const target = evt.target;
-    if (!target.classList.contains('save-role')) return;
-    const row = target.closest('tr');
-    const select = row?.querySelector('.role-select');
-    const userId = row?.dataset.userId;
-    if (!select || !userId) return;
-    clearAdminAlert();
-    updateUserRole(userId, select.value, target);
+    if (target.classList.contains('save-role')) {
+      const row = target.closest('tr');
+      const select = row?.querySelector('.role-select');
+      const passwordInput = row?.querySelector('.password-input');
+      const userId = row?.dataset.userId;
+      if (!select || !userId) return;
+      clearAdminAlert();
+      updateUser(userId, select.value, passwordInput?.value, target);
+      if (passwordInput) passwordInput.value = '';
+    }
+
+    if (target.classList.contains('delete-user')) {
+      const row = target.closest('tr');
+      const userId = row?.dataset.userId;
+      if (!userId) return;
+      clearAdminAlert();
+      deleteUser(userId, target);
+    }
   });
 }
 

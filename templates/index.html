@@ -218,7 +218,8 @@
                   <th>Profil</th>
                   <th>E-mail</th>
                   <th>Rôle</th>
-                  <th>Action</th>
+                  <th>Mot de passe</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody id="admin-users-body">
@@ -236,11 +237,17 @@
                       <option value="admin" {{ 'selected' if managed_user.role == 'admin' else '' }}>Admin</option>
                     </select>
                   </td>
-                  <td><button class="btn secondary save-role" type="button">Mettre à jour</button></td>
+                  <td>
+                    <input class="password-input" type="password" placeholder="Nouveau mot de passe" minlength="8" aria-label="Nouveau mot de passe">
+                  </td>
+                  <td class="admin-actions">
+                    <button class="btn secondary save-role" type="button">Mettre à jour</button>
+                    <button class="btn danger delete-user" type="button">Supprimer</button>
+                  </td>
                 </tr>
                 {% else %}
                 <tr>
-                  <td colspan="4" class="muted">Aucun compte enregistré pour le moment.</td>
+                  <td colspan="5" class="muted">Aucun compte enregistré pour le moment.</td>
                 </tr>
                 {% endfor %}
               </tbody>
