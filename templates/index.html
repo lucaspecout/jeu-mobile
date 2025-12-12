@@ -287,11 +287,133 @@
             <div>
               <p class="eyebrow">Questionnaire</p>
               <h2>Retour d'expérience</h2>
-              <p class="muted">Un formulaire rapide pour collecter les retours des secouristes après chaque mission.</p>
+              <p class="muted">Crée des questionnaires interactifs : thèmes, icônes, points et types de réponses.</p>
             </div>
-            <button class="btn ghost">Ouvrir le questionnaire</button>
+            <div class="panel__actions">
+              <span class="chip chip--pulse">Studio interactif</span>
+            </div>
           </div>
-          <p class="muted">Les réponses alimentent les statistiques ci-dessus pour suivre l'amélioration continue.</p>
+          {% if user.role in ['admin', 'formateur'] %}
+          <div class="wizard-grid">
+            <div class="card card--glass wizard">
+              <div class="wizard__header">
+                <div class="wizard__stepper" id="wizard-stepper">
+                  <div class="wizard__step wizard__step--active" data-step="1">
+                    <span class="wizard__badge">1</span>
+                    <div>
+                      <p class="eyebrow">Brief</p>
+                      <p class="label">Détails du questionnaire</p>
+                    </div>
+                  </div>
+                  <div class="wizard__step" data-step="2">
+                    <span class="wizard__badge">2</span>
+                    <div>
+                      <p class="eyebrow">Questions</p>
+                      <p class="label">Points & choix</p>
+                    </div>
+                  </div>
+                  <div class="wizard__step" data-step="3">
+                    <span class="wizard__badge">3</span>
+                    <div>
+                      <p class="eyebrow">Validation</p>
+                      <p class="label">Résumé & envoi</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="wizard__body" id="wizard-body">
+                <div class="wizard__panel" data-step="1">
+                  <p class="muted">Définis un titre, une description courte, puis choisis une catégorie et une icône pour situer ton formulaire.</p>
+                  <label>Nom du questionnaire
+                    <input id="wizard-title" type="text" placeholder="Brief PSE terrain" required>
+                  </label>
+                  <label>Description
+                    <textarea id="wizard-description" rows="3" placeholder="Objectifs, contexte ou public visé"></textarea>
+                  </label>
+                  <div class="dual-grid">
+                    <label>Catégorie
+                      <select id="wizard-category">
+                        <option value="Urgence">Urgence</option>
+                        <option value="Formation">Formation</option>
+                        <option value="Logistique">Logistique</option>
+                        <option value="Évaluation">Évaluation</option>
+                        <option value="Général" selected>Général</option>
+                      </select>
+                    </label>
+                    <div class="icon-picker" aria-label="Icône du questionnaire">
+                      <p class="label">Icône</p>
+                      <div class="icon-picker__grid" id="wizard-icons">
+                        <button type="button" class="icon-chip active" data-icon="sparkles">✨</button>
+                        <button type="button" class="icon-chip" data-icon="shield">🛡️</button>
+                        <button type="button" class="icon-chip" data-icon="pulse">⚡</button>
+                        <button type="button" class="icon-chip" data-icon="target">🎯</button>
+                        <button type="button" class="icon-chip" data-icon="compass">🧭</button>
+                        <button type="button" class="icon-chip" data-icon="medkit">🧰</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="wizard__panel hidden" data-step="2">
+                  <div class="panel__header">
+                    <div>
+                      <p class="eyebrow">Questions</p>
+                      <h3>Points, réponses et bonnes options</h3>
+                    </div>
+                    <button class="btn secondary" id="add-question">Ajouter une question</button>
+                  </div>
+                  <div id="question-builder" class="question-builder"></div>
+                </div>
+
+                <div class="wizard__panel hidden" data-step="3">
+                  <div class="summary" id="wizard-summary">
+                    <p class="muted">Vérifie la cohérence : points cumulés, type de réponse et icône choisie. Le panneau de droite affiche la prévisualisation finale.</p>
+                  </div>
+                  <button class="btn primary" id="save-questionnaire">Publier le questionnaire</button>
+                  <p class="alert hidden" id="wizard-alert"></p>
+                </div>
+              </div>
+
+              <div class="wizard__footer">
+                <button class="btn ghost" id="wizard-prev" disabled>Étape précédente</button>
+                <button class="btn" id="wizard-next">Étape suivante</button>
+              </div>
+            </div>
+
+            <div class="card card--glass" id="wizard-preview">
+              <div class="panel__header">
+                <div>
+                  <p class="eyebrow">Prévisualisation</p>
+                  <h3 id="preview-title">Brief PSE terrain</h3>
+                  <p class="muted" id="preview-description">Ton aperçu évolue en direct : points, types de réponses et icône du formulaire.</p>
+                </div>
+                <div class="preview-icon" id="preview-icon" aria-hidden="true">✨</div>
+              </div>
+              <div class="chip-row" id="preview-meta">
+                <span class="chip">Catégorie : Général</span>
+                <span class="chip">0 point</span>
+              </div>
+              <div class="question-preview" id="preview-questions"></div>
+            </div>
+          </div>
+          {% else %}
+          <div class="card card--glass">
+            <p class="eyebrow">Consultation</p>
+            <h3>Les questionnaires seront partagés ici</h3>
+            <p class="muted">Connecte-toi en tant que formateur ou admin pour ouvrir le studio de création.</p>
+          </div>
+          {% endif %}
+          <div class="card card--glass" id="questionnaire-list">
+            <div class="panel__header">
+              <div>
+                <p class="eyebrow">Bibliothèque</p>
+                <h3>Questionnaires disponibles</h3>
+                <p class="muted">Chaque entrée affiche la catégorie, l'icône choisie et le nombre de questions.</p>
+              </div>
+            </div>
+            <div id="questionnaire-cards" class="questionnaire-cards"></div>
+          </div>
         </section>
         {% endif %}
       </main>

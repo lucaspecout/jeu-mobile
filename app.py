@@ -69,6 +69,35 @@ class Progress(db.Model):
     level = db.relationship("Level", back_populates="progress")
 
 
+class Questionnaire(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, nullable=True)
+    category = db.Column(db.String(120), nullable=False, default="Général")
+    icon = db.Column(db.String(60), nullable=False, default="sparkles")
+    created_by = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    questions = db.relationship("Question", back_populates="questionnaire", cascade="all, delete-orphan")
+
+
+class Question(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.Text, nullable=False)
+    type = db.Column(db.String(20), nullable=False, default="single")
+    points = db.Column(db.Integer, nullable=False, default=1)
+    questionnaire_id = db.Column(db.Integer, db.ForeignKey("questionnaire.id"), nullable=False)
+    questionnaire = db.relationship("Questionnaire", back_populates="questions")
+    options = db.relationship("AnswerOption", back_populates="question", cascade="all, delete-orphan")
+
+
+class AnswerOption(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    label = db.Column(db.String(255), nullable=False)
+    is_correct = db.Column(db.Boolean, default=False)
+    question_id = db.Column(db.Integer, db.ForeignKey("question.id"), nullable=False)
+    question = db.relationship("Question", back_populates="options")
+
+
 LEVEL_SEED = [
     {
         "slug": "initiation",
@@ -199,6 +228,33 @@ def serialize_user_admin(user: User):
     return data
 
 
+def serialize_question(question: Question):
+    return {
+        "id": question.id,
+        "text": question.text,
+        "type": question.type,
+        "points": question.points,
+        "options": [
+            {"id": opt.id, "label": opt.label, "is_correct": opt.is_correct}
+            for opt in question.options
+        ],
+    }
+
+
+def serialize_questionnaire(questionnaire: Questionnaire, include_questions: bool = True):
+    data = {
+        "id": questionnaire.id,
+        "title": questionnaire.title,
+        "description": questionnaire.description,
+        "category": questionnaire.category,
+        "icon": questionnaire.icon,
+        "created_at": questionnaire.created_at.isoformat() if questionnaire.created_at else None,
+    }
+    if include_questions:
+        data["questions"] = [serialize_question(q) for q in questionnaire.questions]
+    return data
+
+
 def current_user():
     user_id = session.get("user_id")
     if not user_id:
@@ -270,6 +326,14 @@ def register_routes(app: Flask) -> None:
             return user, (jsonify({"error": "Authentification requise"}), 401)
         if user.role != "admin":
             return user, (jsonify({"error": "Accès réservé à l'administrateur"}), 403)
+        return user, None
+
+    def ensure_designer_access():
+        user = current_user()
+        if not user:
+            return user, (jsonify({"error": "Authentification requise"}), 401)
+        if user.role not in {"admin", "formateur"}:
+            return user, (jsonify({"error": "Accès réservé aux formateurs"}), 403)
         return user, None
 
     def render_shell(page: str):
@@ -482,6 +546,70 @@ def register_routes(app: Flask) -> None:
         db.session.delete(user)
         db.session.commit()
         return jsonify({"ok": True})
+
+    @app.route("/api/questionnaires", methods=["GET"])
+    def api_questionnaires():
+        user = current_user()
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
+        questionnaires = Questionnaire.query.order_by(Questionnaire.created_at.desc()).all()
+        include_questions = user.role in {"admin", "formateur"}
+        return jsonify({
+            "questionnaires": [serialize_questionnaire(q, include_questions=include_questions) for q in questionnaires]
+        })
+
+    @app.route("/api/questionnaires", methods=["POST"])
+    def api_create_questionnaire():
+        designer, error = ensure_designer_access()
+        if error:
+            return error
+
+        data = request.get_json() or {}
+        title = (data.get("title") or "").strip()
+        category = (data.get("category") or "Général").strip() or "Général"
+        icon = (data.get("icon") or "sparkles").strip() or "sparkles"
+        description = (data.get("description") or "").strip()
+        questions_data = data.get("questions") or []
+
+        if not title:
+            return jsonify({"error": "Un titre est requis"}), 400
+        if not questions_data:
+            return jsonify({"error": "Ajoutez au moins une question"}), 400
+
+        questionnaire = Questionnaire(
+            title=title,
+            description=description,
+            category=category,
+            icon=icon,
+            created_by=designer.id,
+        )
+        db.session.add(questionnaire)
+        db.session.flush()
+
+        for question_data in questions_data:
+            text = (question_data.get("text") or "").strip()
+            q_type = (question_data.get("type") or "single").strip()
+            points = int(question_data.get("points") or 0)
+            if not text:
+                continue
+            question = Question(text=text, type=q_type, points=max(points, 0), questionnaire=questionnaire)
+            db.session.add(question)
+
+            options = question_data.get("options") or []
+            if q_type in {"single", "multiple"}:
+                # For single-choice, only the first marked option is kept as correct
+                seen_correct = False
+                for opt in options:
+                    label = (opt.get("label") or "").strip()
+                    if not label:
+                        continue
+                    is_correct = bool(opt.get("is_correct")) and (q_type == "multiple" or not seen_correct)
+                    if is_correct and q_type == "single":
+                        seen_correct = True
+                    db.session.add(AnswerOption(label=label, is_correct=is_correct, question=question))
+
+        db.session.commit()
+        return jsonify(serialize_questionnaire(questionnaire)), 201
 
 
 app = create_app()

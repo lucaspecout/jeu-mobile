@@ -311,6 +311,49 @@ body {
 .logs { position: relative; z-index: 2; display: grid; gap: 8px; max-height: 220px; overflow-y: auto; padding-right: 8px; }
 .log-entry { padding: 8px 10px; border-radius: 10px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--border); font-size: 14px; }
 
+.wizard-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 18px; margin-bottom: 18px; }
+.wizard { position: relative; overflow: hidden; }
+.wizard__header { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px; }
+.wizard__stepper { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.wizard__step { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: rgba(255,255,255,0.03); }
+.wizard__step--active { border-color: rgba(255,107,61,0.5); box-shadow: var(--glow); }
+.wizard__step--done { border-color: rgba(58,242,255,0.4); }
+.wizard__badge { width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; background: rgba(255,107,61,0.2); font-weight: 700; color: #fff; }
+.wizard__body { display: grid; gap: 12px; }
+.wizard__panel textarea { width: 100%; }
+.wizard__footer { display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--border); margin-top: 6px; }
+
+.icon-picker__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(50px, 1fr)); gap: 8px; }
+.icon-chip { border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: #fff; padding: 10px; border-radius: 12px; font-size: 18px; transition: 0.2s ease; cursor: pointer; }
+.icon-chip.active { border-color: rgba(255,107,61,0.6); box-shadow: var(--glow); }
+.icon-chip:hover { transform: translateY(-2px); }
+
+.question-builder { display: grid; gap: 12px; }
+.question-card { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: rgba(255,255,255,0.03); display: grid; gap: 10px; }
+.question-card__header { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.question-card__header input { width: 100%; }
+.question-card__actions { display: flex; gap: 8px; align-items: center; }
+.chips-inline { display: flex; align-items: center; gap: 6px; }
+.option-list { display: grid; gap: 8px; }
+.option-row { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; background: rgba(255,255,255,0.03); padding: 8px; border-radius: 10px; border: 1px solid var(--border); }
+.option-row input[type="text"] { width: 100%; }
+.option-check { display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.icon-btn { border: 1px solid var(--border); background: rgba(255,255,255,0.05); border-radius: 8px; padding: 6px 10px; cursor: pointer; color: #fff; }
+.icon-btn:hover { box-shadow: var(--glow); }
+
+.preview-icon { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 18px; background: rgba(255,107,61,0.18); font-size: 28px; box-shadow: var(--glow); }
+.chip-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.question-preview { display: grid; gap: 10px; }
+.preview-card { border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: rgba(255,255,255,0.03); }
+.preview-card__header { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 6px; }
+.preview-card__options { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; color: var(--muted); }
+
+.questionnaire-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+.questionnaire-card { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: linear-gradient(135deg, rgba(58,242,255,0.08), rgba(255,107,61,0.12)); display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+.questionnaire-card__icon { width: 56px; height: 56px; display: grid; place-items: center; border-radius: 14px; background: rgba(255,255,255,0.08); font-size: 26px; box-shadow: var(--glow); }
+
+.summary__list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; color: var(--muted); }
+
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes float { 0%, 100% { transform: translateY(-6px); } 50% { transform: translateY(6px); } }
 @keyframes pulse { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
