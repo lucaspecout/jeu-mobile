@@ -2,7 +2,7 @@ import os
 from datetime import datetime
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy import inspect, text
+from sqlalchemy import func, inspect, text
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -162,7 +162,59 @@ def register_routes(app: Flask) -> None:
             return redirect(url_for("auth"))
         progress_map = {p.level_id: serialize_progress(p) for p in (user.progress if user else [])}
         levels = [serialize_level(level, progress_map.get(level.id)) for level in Level.query.all()]
-        return render_template("index.html", levels=levels, user=user)
+
+        missions_completed = Progress.query.filter(Progress.status != "non_commence").count()
+        total_rescuers = User.query.count()
+        leaderboard_rows = (
+            db.session.query(
+                User.id,
+                User.username,
+                User.avatar,
+                func.count(Progress.id),
+                func.coalesce(func.sum(Progress.score), 0),
+            )
+            .outerjoin(Progress)
+            .group_by(User.id)
+            .order_by(func.coalesce(func.sum(Progress.score), 0).desc())
+            .all()
+        )
+        leaderboard = [
+            {
+                "username": row[1],
+                "avatar": row[2] or "alpha",
+                "missions": row[3],
+                "score": int(row[4] or 0),
+            }
+            for row in leaderboard_rows
+        ]
+        trophies = [
+            {
+                "icon": "🏅",
+                "title": "Éclaireur",
+                "description": "3 missions activées",
+                "earned": missions_completed >= 3,
+            },
+            {
+                "icon": "🚑",
+                "title": "Chef d'équipe",
+                "description": "Plus de 5 secouristes inscrits",
+                "earned": total_rescuers >= 5,
+            },
+            {
+                "icon": "🎯",
+                "title": "Précision",
+                "description": "Score cumulé supérieur à 200",
+                "earned": sum(item[4] or 0 for item in leaderboard_rows) >= 200,
+            },
+        ]
+        dashboard_stats = {
+            "missions_completed": missions_completed,
+            "total_rescuers": total_rescuers,
+            "leaderboard": leaderboard,
+            "trophies": trophies,
+            "trophies_unlocked": sum(1 for trophy in trophies if trophy["earned"]),
+        }
+        return render_template("index.html", levels=levels, user=user, dashboard_stats=dashboard_stats)
 
     @app.route("/auth")
     def auth():
