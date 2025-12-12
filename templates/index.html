@@ -21,6 +21,12 @@
     <div id="app-shell" class="app-shell hidden">
       <div class="grid-bg" aria-hidden="true"></div>
       <div class="scanline" aria-hidden="true"></div>
+      <div class="topbar">
+        <div class="topbar__spacer"></div>
+        <button class="profile-btn" id="profile-btn" aria-label="Ouvrir le profil">
+          <span class="avatar" id="profile-avatar"></span>
+        </button>
+      </div>
       <header class="hero">
         <div class="hero__content">
           <p class="hero__eyebrow">Matrice PSE</p>
@@ -117,6 +123,52 @@
         </section>
       </main>
     </div>
+
+    <aside class="profile-drawer hidden" id="profile-drawer">
+      <div class="profile-drawer__header">
+        <div>
+          <p class="eyebrow">Profil</p>
+          <h2>Identité pilote</h2>
+          <p class="muted">Met à jour tes infos ou change d'avatar.</p>
+        </div>
+        <button class="btn ghost" id="close-profile">Fermer</button>
+      </div>
+      <form class="form" id="profile-form">
+        <label>Pseudo
+          <input name="username" id="profile-username" type="text" autocomplete="username" required>
+        </label>
+        <label>E-mail
+          <input name="email" id="profile-email" type="email" autocomplete="email" required>
+        </label>
+        <label>Nouveau mot de passe (optionnel)
+          <input name="password" id="profile-password" type="password" autocomplete="new-password" minlength="8" placeholder="Laisser vide pour conserver">
+        </label>
+        <div class="avatar-picker" role="radiogroup" aria-label="Choix de l'avatar">
+          <p class="label">Avatar</p>
+          <div class="avatar-picker__grid" id="profile-avatars">
+            <button type="button" class="avatar-chip" data-avatar="alpha">
+              <span class="avatar avatar--alpha"></span>
+              <span>Alpha</span>
+            </button>
+            <button type="button" class="avatar-chip" data-avatar="bravo">
+              <span class="avatar avatar--bravo"></span>
+              <span>Bravo</span>
+            </button>
+            <button type="button" class="avatar-chip" data-avatar="charlie">
+              <span class="avatar avatar--charlie"></span>
+              <span>Charlie</span>
+            </button>
+            <button type="button" class="avatar-chip" data-avatar="delta">
+              <span class="avatar avatar--delta"></span>
+              <span>Delta</span>
+            </button>
+          </div>
+          <input type="hidden" name="avatar" id="profile-avatar-value" value="alpha">
+        </div>
+        <button class="btn primary" type="submit">Mettre à jour</button>
+        <div class="alert hidden" id="profile-alert"></div>
+      </form>
+    </aside>
 
     <script>const LEVELS = {{ levels|tojson }};</script>
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>

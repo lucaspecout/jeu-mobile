@@ -34,6 +34,7 @@ class User(db.Model):
     username = db.Column(db.String(80), nullable=False)
     email = db.Column(db.String(120), unique=True, nullable=False)
     password_hash = db.Column(db.String(255), nullable=False)
+    avatar = db.Column(db.String(40), default="alpha")
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     progress = db.relationship("Progress", back_populates="user", cascade="all, delete")
 
@@ -87,6 +88,8 @@ LEVEL_SEED = [
     },
 ]
 
+AVATAR_CHOICES = {"alpha", "bravo", "charlie", "delta"}
+
 
 def bootstrap_levels():
     for level_data in LEVEL_SEED:
@@ -113,6 +116,16 @@ def serialize_level(level: Level, progress=None):
         "difficulty": level.difficulty,
         "icon": level.icon,
         "progress": progress,
+    }
+
+
+def serialize_user(user: User):
+    if not user:
+        return None
+    return {
+        "username": user.username,
+        "email": user.email,
+        "avatar": user.avatar,
     }
 
 
@@ -144,17 +157,26 @@ def register_routes(app: Flask) -> None:
     def api_register():
         data = request.get_json() or {}
         email = (data.get("email") or "").lower()
+        avatar = data.get("avatar") or "alpha"
+        if avatar not in AVATAR_CHOICES:
+            avatar = "alpha"
+
         if not email or not data.get("password") or not data.get("username"):
             return jsonify({"error": "Champs manquants"}), 400
         if User.query.filter_by(email=email).first():
             return jsonify({"error": "Un compte existe déjà avec cet e-mail"}), 400
 
         hashed = generate_password_hash(data["password"])
-        user = User(username=data["username"].strip(), email=email, password_hash=hashed)
+        user = User(
+            username=data["username"].strip(),
+            email=email,
+            password_hash=hashed,
+            avatar=avatar,
+        )
         db.session.add(user)
         db.session.commit()
         session["user_id"] = user.id
-        return jsonify({"id": user.id, "username": user.username})
+        return jsonify({"id": user.id, "username": user.username, "avatar": user.avatar})
 
     @app.route("/api/login", methods=["POST"])
     def api_login():
@@ -165,7 +187,7 @@ def register_routes(app: Flask) -> None:
         if not user or not user.verify_password(password or ""):
             return jsonify({"error": "Identifiants invalides"}), 401
         session["user_id"] = user.id
-        return jsonify({"id": user.id, "username": user.username})
+        return jsonify({"id": user.id, "username": user.username, "avatar": user.avatar})
 
     @app.route("/api/logout", methods=["POST"])
     def api_logout():
@@ -179,7 +201,7 @@ def register_routes(app: Flask) -> None:
             return jsonify({"error": "Authentification requise"}), 401
         progress_map = {p.level_id: serialize_progress(p) for p in (user.progress if user else [])}
         levels = [serialize_level(level, progress_map.get(level.id)) for level in Level.query.all()]
-        return jsonify({"levels": levels, "user": user.username if user else None})
+        return jsonify({"levels": levels, "user": serialize_user(user)})
 
     @app.route("/api/progress/<int:level_id>", methods=["POST"])
     def api_progress(level_id: int):
@@ -208,11 +230,38 @@ def register_routes(app: Flask) -> None:
             return jsonify({"user": None})
         return jsonify(
             {
-                "username": user.username,
-                "email": user.email,
+                **serialize_user(user),
                 "progress": [serialize_progress(p) for p in user.progress],
             }
         )
+
+    @app.route("/api/profile", methods=["PUT", "POST"])
+    def api_profile_update():
+        user = current_user()
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
+
+        data = request.get_json() or {}
+        email = (data.get("email") or user.email).lower()
+        username = data.get("username") or user.username
+        avatar = data.get("avatar") or user.avatar
+        password = data.get("password")
+
+        if avatar not in AVATAR_CHOICES:
+            avatar = user.avatar
+
+        email_owner = User.query.filter_by(email=email).first()
+        if email_owner and email_owner.id != user.id:
+            return jsonify({"error": "Cet e-mail est déjà utilisé"}), 400
+
+        user.email = email
+        user.username = username.strip()
+        user.avatar = avatar
+        if password:
+            user.password_hash = generate_password_hash(password)
+
+        db.session.commit()
+        return jsonify(serialize_user(user))
 
 
 app = create_app()

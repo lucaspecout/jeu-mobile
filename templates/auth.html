@@ -23,15 +23,11 @@
         <div class="grid-bg" aria-hidden="true"></div>
         <div class="scanline" aria-hidden="true"></div>
 
-        <header class="hero">
+        <header class="hero hero--compact">
           <div class="hero__content">
-            <p class="hero__eyebrow">Rescue link</p>
-            <h1>Accès équipe</h1>
-            <p class="hero__tagline">Interface épurée dédiée aux interventions prioritaires.</p>
-            <div class="hero__badges">
-              <span class="chip chip--pulse">Alerte</span>
-              <span class="chip">Ligne sécurisée</span>
-            </div>
+            <p class="hero__eyebrow">Portail</p>
+            <h1>Connexion sécurisée</h1>
+            <p class="hero__tagline">Écran clair, sans parasites : choisissez votre profil et entrez.</p>
           </div>
         </header>
 
@@ -41,7 +37,7 @@
               <div>
                 <p class="eyebrow">Identité</p>
                 <h2>Connexion rapide</h2>
-                <p class="muted">Rejoignez la salle de commande en quelques secondes.</p>
+                <p class="muted">Pas de messages inutiles, juste l'accès au cockpit.</p>
               </div>
               <a class="btn ghost" href="/">Retourner à l'accueil</a>
             </div>
@@ -70,28 +66,31 @@
                   <label>Mot de passe
                     <input name="password" type="password" autocomplete="new-password" minlength="8" required>
                   </label>
+                  <div class="avatar-picker" role="radiogroup" aria-label="Choix de l'avatar">
+                    <p class="label">Avatar</p>
+                    <div class="avatar-picker__grid">
+                      <button type="button" class="avatar-chip active" data-avatar="alpha">
+                        <span class="avatar avatar--alpha"></span>
+                        <span>Alpha</span>
+                      </button>
+                      <button type="button" class="avatar-chip" data-avatar="bravo">
+                        <span class="avatar avatar--bravo"></span>
+                        <span>Bravo</span>
+                      </button>
+                      <button type="button" class="avatar-chip" data-avatar="charlie">
+                        <span class="avatar avatar--charlie"></span>
+                        <span>Charlie</span>
+                      </button>
+                      <button type="button" class="avatar-chip" data-avatar="delta">
+                        <span class="avatar avatar--delta"></span>
+                        <span>Delta</span>
+                      </button>
+                    </div>
+                    <input type="hidden" name="avatar" id="avatar-choice" value="alpha">
+                  </div>
                   <button class="btn secondary" type="submit">Activer un profil</button>
                 </form>
                 <div class="alert hidden" id="auth-alert"></div>
-              </div>
-
-              <div class="card card--glass status">
-                <p class="eyebrow">Briefing</p>
-                <h3>Mode intervention</h3>
-                <div class="status__grid">
-                  <div>
-                    <p class="label">Connexion</p>
-                    <p class="pulse">Active</p>
-                  </div>
-                  <div>
-                    <p class="label">Réseau</p>
-                    <p>Chiffré</p>
-                  </div>
-                  <div>
-                    <p class="label">Priorité</p>
-                    <p>Urgence</p>
-                  </div>
-                </div>
               </div>
             </div>
           </section>

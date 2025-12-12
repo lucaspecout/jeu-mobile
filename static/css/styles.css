@@ -23,6 +23,10 @@ body {
 }
 
 .app-shell { position: relative; min-height: 100vh; }
+.topbar { position: sticky; top: 0; z-index: 3; display: flex; justify-content: flex-end; align-items: center; padding: 12px min(6vw, 72px); backdrop-filter: blur(12px); }
+.topbar__spacer { flex: 1; }
+.profile-btn { border: 1px solid var(--border); background: rgba(255,255,255,0.04); border-radius: 999px; padding: 6px; cursor: pointer; box-shadow: var(--glow); }
+.profile-btn .avatar { display: block; width: 38px; height: 38px; }
 
 .splash {
   position: fixed;
@@ -84,6 +88,7 @@ body {
   padding: 64px min(6vw, 72px) 32px;
   align-items: center;
 }
+.hero--compact { padding-bottom: 0; }
 
 .hero__content h1 {
   font-size: clamp(32px, 3vw + 10px, 64px);
@@ -166,6 +171,15 @@ body {
 .form { display: grid; gap: 12px; }
 .form label { color: var(--muted); display: grid; gap: 6px; font-size: 14px; }
 .form input { padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: rgba(255,255,255,0.03); color: var(--text); }
+.avatar-picker { display: grid; gap: 8px; }
+.avatar-picker__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+.avatar-chip { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); border-radius: 12px; padding: 10px; background: rgba(255,255,255,0.03); color: var(--text); cursor: pointer; transition: 0.2s ease; }
+.avatar-chip.active { box-shadow: var(--glow); background: linear-gradient(135deg, rgba(255,107,61,0.22), rgba(255,44,85,0.18)); }
+.avatar { width: 32px; height: 32px; border-radius: 50%; display: inline-block; border: 1px solid var(--border); box-shadow: var(--glow); }
+.avatar--alpha { background: radial-gradient(circle at 30% 30%, #ff6b3d, #251018); }
+.avatar--bravo { background: radial-gradient(circle at 40% 30%, #ff2c55, #1c0d23); }
+.avatar--charlie { background: radial-gradient(circle at 60% 40%, #ffd166, #26140e); }
+.avatar--delta { background: radial-gradient(circle at 50% 50%, #7bdff2, #0c1a26); }
 .hidden { display: none !important; }
 
 .card {
@@ -191,6 +205,11 @@ body {
 .menu-card .launch { margin-top: 12px; }
 .menu-card::after { content: ""; position: absolute; inset: -40% auto auto -40%; width: 120px; height: 120px; background: radial-gradient(circle, rgba(255,255,255,0.18), transparent 60%); transform: rotate(25deg); opacity: 0.6; }
 .menu-card:hover { box-shadow: var(--glow); transform: translateY(-2px); transition: 0.2s ease; }
+
+.profile-drawer { position: fixed; right: 0; top: 0; bottom: 0; width: min(420px, 90vw); background: rgba(10, 8, 12, 0.95); border-left: 1px solid var(--border); padding: 18px; box-shadow: -10px 0 30px rgba(0,0,0,0.45); z-index: 6; overflow-y: auto; backdrop-filter: blur(12px); }
+.profile-drawer.hidden { display: none !important; }
+.profile-drawer__header { display: flex; align-items: center; justify-content: space-between; }
+.profile-drawer .form { margin-top: 16px; }
 
 .chip { border: 1px solid var(--border); border-radius: 999px; padding: 6px 12px; color: var(--text); background: rgba(255,107,61,0.12); display: inline-flex; align-items: center; gap: 6px; }
 .chip--pulse { box-shadow: 0 0 12px rgba(255,107,61,0.55); }
