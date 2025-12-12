@@ -128,6 +128,7 @@ function applyAvatar(target, avatar) {
 }
 
 function updateStatus(user, progressCount) {
+  if (!statusTitle || !statusSub || !statusUser || !statusProgress) return;
   if (user) {
     statusTitle.textContent = 'Connecté';
     statusSub.textContent = 'Votre session est synchronisée avec la base de données.';
