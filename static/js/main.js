@@ -47,6 +47,23 @@ const previewMeta = qs('#preview-meta');
 const previewQuestions = qs('#preview-questions');
 const questionnaireCards = qs('#questionnaire-cards');
 const wizardSummary = qs('#wizard-summary');
+const playerModal = qs('#questionnaire-player');
+const playerOverlay = qs('#player-overlay');
+const closePlayerBtn = qs('#close-player');
+const playerProgress = qs('#player-progress');
+const playerProgressText = qs('#player-progress-text');
+const playerScore = qs('#player-score');
+const playerQuestion = qs('#player-question');
+const playerStep = qs('#player-step');
+const playerNext = qs('#player-next');
+const playerPrev = qs('#player-prev');
+const playerCategory = qs('#player-category');
+const playerTitle = qs('#player-title');
+const playerDescription = qs('#player-description');
+const playerResult = qs('#player-result');
+const resultStars = qs('#result-stars');
+const resultLabel = qs('#result-label');
+const resultDetail = qs('#result-detail');
 const AVATAR_EMOJIS = {
   alpha: '🛰️',
   bravo: '🚑',
@@ -77,6 +94,13 @@ let wizardState = {
   category: 'Général',
   icon: 'sparkles',
   questions: [],
+};
+let playerState = {
+  questionnaire: null,
+  answers: {},
+  index: 0,
+  score: 0,
+  totalPoints: 0,
 };
 
 function clearAuthState() {
@@ -696,15 +720,19 @@ async function refreshQuestionnaires() {
     data.questionnaires.forEach((q) => {
       const card = document.createElement('article');
       card.className = 'questionnaire-card';
+      card.dataset.id = q.id;
       card.innerHTML = `
         <div class="questionnaire-card__icon">${ICON_EMOJIS[q.icon] || ICON_EMOJIS.default}</div>
         <div class="questionnaire-card__body">
           <p class="eyebrow">${q.category}</p>
           <h4>${q.title}</h4>
           <p class="muted">${q.description || 'Pas de description'}</p>
-          <div class="chip-row">
-            <span class="chip">${q.questions ? q.questions.length : 0} question(s)</span>
+          <div class="chip-row questionnaire-card__footer">
+            <span class="chip">${q.question_count || (q.questions ? q.questions.length : 0)} question(s)</span>
             <span class="chip">${new Date(q.created_at).toLocaleDateString()}</span>
+            ${currentUser?.role === 'admin' ? '<span class="admin-pill">Admin</span>' : ''}
+            <button class="btn secondary play-questionnaire" data-id="${q.id}">Ouvrir</button>
+            ${currentUser?.role === 'admin' ? `<button class="btn danger delete-questionnaire" data-id="${q.id}">Supprimer</button>` : ''}
           </div>
         </div>
       `;
@@ -715,10 +743,202 @@ async function refreshQuestionnaires() {
   }
 }
 
+function setupQuestionnaireActions() {
+  if (!questionnaireCards) return;
+  questionnaireCards.addEventListener('click', async (evt) => {
+    const playBtn = evt.target.closest('.play-questionnaire');
+    const deleteBtn = evt.target.closest('.delete-questionnaire');
+    if (playBtn) {
+      try {
+        const questionnaire = await fetchQuestionnaireDetail(playBtn.dataset.id);
+        openPlayer(questionnaire);
+      } catch (err) {
+        setAlert(err.message);
+      }
+      return;
+    }
+
+    if (deleteBtn) {
+      const confirmDelete = window.confirm('Supprimer définitivement ce questionnaire ?');
+      if (!confirmDelete) return;
+      try {
+        const res = await fetch(`/api/questionnaires/${deleteBtn.dataset.id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error();
+        await refreshQuestionnaires();
+      } catch (err) {
+        setAlert('Impossible de supprimer le questionnaire.');
+      }
+    }
+  });
+}
+
+function setupPlayerNavigation() {
+  if (closePlayerBtn) closePlayerBtn.addEventListener('click', closePlayer);
+  if (playerOverlay) playerOverlay.addEventListener('click', closePlayer);
+  if (playerPrev) {
+    playerPrev.addEventListener('click', () => {
+      if (!playerState.questionnaire || playerState.index === 0) return;
+      playerState.index -= 1;
+      renderPlayerQuestion();
+    });
+  }
+  if (playerNext) {
+    playerNext.addEventListener('click', () => {
+      if (!playerState.questionnaire) return;
+      const total = playerState.questionnaire.questions.length;
+      if (playerState.index >= total - 1) {
+        showResult();
+        return;
+      }
+      playerState.index += 1;
+      renderPlayerQuestion();
+    });
+  }
+}
+
 function setupSimulator() {
   const simulateBtn = qs('#simulate-btn');
   if (!simulateBtn) return;
   simulateBtn.addEventListener('click', () => animateSuccess('Simulation réussie : animation déclenchée.'));
+}
+
+async function fetchQuestionnaireDetail(id) {
+  const res = await fetch(`/api/questionnaires/${id}`);
+  if (!res.ok) throw new Error('Impossible de charger le questionnaire');
+  return res.json();
+}
+
+function updatePlayerProgress() {
+  if (!playerState.questionnaire) return;
+  const total = playerState.questionnaire.questions.length;
+  const percent = Math.round(((playerState.index + 1) / total) * 100);
+  if (playerProgress) playerProgress.style.width = `${percent}%`;
+  if (playerProgressText) playerProgressText.textContent = `${percent}%`;
+  if (playerStep) playerStep.textContent = `Question ${playerState.index + 1} / ${total}`;
+  if (playerScore) playerScore.textContent = `${playerState.score} / ${playerState.totalPoints} point(s)`;
+  if (playerPrev) playerPrev.disabled = playerState.index === 0;
+  if (playerNext) playerNext.textContent = playerState.index === total - 1 ? 'Terminer' : 'Suivant';
+}
+
+function renderStars(ratio) {
+  if (!resultStars) return;
+  const stars = 5;
+  const filled = Math.round(ratio * stars);
+  resultStars.innerHTML = '';
+  for (let i = 0; i < stars; i += 1) {
+    const span = document.createElement('span');
+    span.textContent = i < filled ? '⭐' : '☆';
+    resultStars.appendChild(span);
+  }
+}
+
+function evaluateAnswers() {
+  playerState.score = 0;
+  playerState.totalPoints = playerState.questionnaire.questions.reduce((acc, q) => acc + (q.points || 0), 0);
+
+  playerState.questionnaire.questions.forEach((question, idx) => {
+    const answer = playerState.answers[idx];
+    if (!answer) return;
+    if (question.type === 'text') {
+      if (answer.trim()) playerState.score += question.points || 0;
+      return;
+    }
+
+    const correctOptions = (question.options || []).filter((o) => o.is_correct).map((o) => `${o.id}`);
+    const selected = Array.isArray(answer) ? answer.map((val) => `${val}`) : [`${answer}`];
+    const isCorrect = correctOptions.length === selected.length && correctOptions.every((id) => selected.includes(id));
+    if (isCorrect) playerState.score += question.points || 0;
+  });
+}
+
+function renderPlayerQuestion() {
+  if (!playerQuestion || !playerState.questionnaire) return;
+  const question = playerState.questionnaire.questions[playerState.index];
+  const savedAnswer = playerState.answers[playerState.index];
+  playerQuestion.innerHTML = `
+    <div class="chips-inline">
+      <span class="chip">${QUESTION_TYPES[question.type] || 'Réponse'}</span>
+      <span class="chip">${question.points} point(s)</span>
+    </div>
+    <h4>${question.text}</h4>
+    <div class="player-question__options"></div>
+  `;
+
+  const optionsContainer = playerQuestion.querySelector('.player-question__options');
+  if (question.type === 'text') {
+    const textarea = document.createElement('textarea');
+    textarea.rows = 3;
+    textarea.placeholder = 'Ta réponse';
+    textarea.value = savedAnswer || '';
+    textarea.addEventListener('input', (evt) => {
+      playerState.answers[playerState.index] = evt.target.value;
+    });
+    optionsContainer.appendChild(textarea);
+  } else {
+    (question.options || []).forEach((opt) => {
+      const wrapper = document.createElement('label');
+      wrapper.className = 'option-tile';
+      const input = document.createElement('input');
+      input.type = question.type === 'multiple' ? 'checkbox' : 'radio';
+      input.name = `question-${playerState.index}`;
+      input.value = opt.id;
+      if (question.type === 'multiple' && Array.isArray(savedAnswer)) {
+        input.checked = savedAnswer.includes(opt.id) || savedAnswer.includes(`${opt.id}`);
+      }
+      if (question.type === 'single' && savedAnswer) {
+        input.checked = `${savedAnswer}` === `${opt.id}`;
+      }
+      input.addEventListener('change', (evt) => {
+        if (question.type === 'multiple') {
+          const selected = playerState.answers[playerState.index] || [];
+          if (evt.target.checked) {
+            playerState.answers[playerState.index] = [...selected, opt.id];
+          } else {
+            playerState.answers[playerState.index] = selected.filter((id) => `${id}` !== `${opt.id}`);
+          }
+        } else {
+          playerState.answers[playerState.index] = opt.id;
+        }
+      });
+      wrapper.appendChild(input);
+      const span = document.createElement('span');
+      span.textContent = opt.label;
+      wrapper.appendChild(span);
+      optionsContainer.appendChild(wrapper);
+    });
+  }
+  updatePlayerProgress();
+}
+
+function showResult() {
+  evaluateAnswers();
+  const ratio = playerState.totalPoints ? playerState.score / playerState.totalPoints : 0;
+  renderStars(ratio);
+  if (resultLabel) resultLabel.textContent = ratio >= 0.8 ? 'Excellente maîtrise' : ratio >= 0.5 ? 'Bien joué' : 'À retravailler';
+  if (resultDetail) resultDetail.textContent = `Score ${playerState.score} / ${playerState.totalPoints} points.`;
+  if (playerResult) playerResult.classList.remove('hidden');
+  updatePlayerProgress();
+}
+
+function openPlayer(questionnaire) {
+  playerState = {
+    questionnaire,
+    answers: {},
+    index: 0,
+    score: 0,
+    totalPoints: questionnaire.questions.reduce((acc, q) => acc + (q.points || 0), 0),
+  };
+  if (playerTitle) playerTitle.textContent = questionnaire.title;
+  if (playerCategory) playerCategory.textContent = questionnaire.category;
+  if (playerDescription) playerDescription.textContent = questionnaire.description || 'Réponds pour accumuler des points.';
+  if (playerResult) playerResult.classList.add('hidden');
+  renderPlayerQuestion();
+  playerModal?.classList.remove('hidden');
+}
+
+function closePlayer() {
+  playerModal?.classList.add('hidden');
+  playerState = { questionnaire: null, answers: {}, index: 0, score: 0, totalPoints: 0 };
 }
 
 function initQuestionnaireWizard() {
@@ -744,8 +964,10 @@ async function init() {
   setupTopbarToggle();
   setupSimulator();
   initQuestionnaireWizard();
-  await refreshQuestionnaires();
   await refreshMenu();
+  await refreshQuestionnaires();
+  setupQuestionnaireActions();
+  setupPlayerNavigation();
   log('Interface initialisée avec GSAP et Flask.');
 }
 

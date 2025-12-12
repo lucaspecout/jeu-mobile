@@ -478,6 +478,47 @@
       </form>
     </aside>
 
+    <div class="modal hidden" id="questionnaire-player" role="dialog" aria-modal="true" aria-labelledby="player-title">
+      <div class="modal__overlay" id="player-overlay"></div>
+      <div class="modal__content">
+        <div class="modal__header">
+          <div>
+            <p class="eyebrow" id="player-category">Questionnaire</p>
+            <h3 id="player-title">Session</h3>
+            <p class="muted" id="player-description">Réponds aux questions et suis la barre de progression.</p>
+          </div>
+          <button class="btn ghost" id="close-player">Fermer</button>
+        </div>
+        <div class="progress">
+          <div class="progress__bar" id="player-progress"></div>
+          <div class="progress__labels">
+            <span id="player-progress-text">0%</span>
+            <span id="player-score">0 point</span>
+          </div>
+        </div>
+        <div class="modal__body">
+          <div class="player-question" id="player-question"></div>
+          <div class="player-actions">
+            <div class="chip" id="player-step">Question 1</div>
+            <div class="player-buttons">
+              <button class="btn ghost" id="player-prev">Précédent</button>
+              <button class="btn primary" id="player-next">Suivant</button>
+            </div>
+          </div>
+        </div>
+        <div class="modal__footer hidden" id="player-result">
+          <div class="result">
+            <div class="result__stars" id="result-stars"></div>
+            <div>
+              <p class="eyebrow">Résultat</p>
+              <h4 id="result-label">Bon travail !</h4>
+              <p class="muted" id="result-detail">Continue pour améliorer ton score.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <script>
       const LEVELS = {{ levels|tojson }};
       window.AVATAR_EMOJIS = {{ avatar_emojis|tojson }};

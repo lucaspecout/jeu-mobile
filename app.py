@@ -248,6 +248,7 @@ def serialize_questionnaire(questionnaire: Questionnaire, include_questions: boo
         "description": questionnaire.description,
         "category": questionnaire.category,
         "icon": questionnaire.icon,
+        "question_count": len(questionnaire.questions),
         "created_at": questionnaire.created_at.isoformat() if questionnaire.created_at else None,
     }
     if include_questions:
@@ -557,6 +558,26 @@ def register_routes(app: Flask) -> None:
         return jsonify({
             "questionnaires": [serialize_questionnaire(q, include_questions=include_questions) for q in questionnaires]
         })
+
+    @app.route("/api/questionnaires/<int:questionnaire_id>")
+    def api_questionnaire_detail(questionnaire_id: int):
+        user = current_user()
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
+
+        questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+        return jsonify(serialize_questionnaire(questionnaire, include_questions=True))
+
+    @app.route("/api/questionnaires/<int:questionnaire_id>", methods=["DELETE"])
+    def api_delete_questionnaire(questionnaire_id: int):
+        _, error = ensure_admin_access()
+        if error:
+            return error
+
+        questionnaire = Questionnaire.query.get_or_404(questionnaire_id)
+        db.session.delete(questionnaire)
+        db.session.commit()
+        return jsonify({"ok": True})
 
     @app.route("/api/questionnaires", methods=["POST"])
     def api_create_questionnaire():
