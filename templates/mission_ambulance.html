@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ level.name }} - Protec Rescue</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .game-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin: 20px auto;
+            background: #1a1a2e;
+            border: 3px solid var(--accent);
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(255, 107, 61, 0.3);
+        }
+
+        .game-stats {
+            display: flex;
+            justify-content: space-around;
+            margin: 20px 0;
+            gap: 10px;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--accent);
+            margin: 5px 0;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--muted);
+            text-transform: uppercase;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            max-width: 300px;
+            margin: 20px auto;
+        }
+
+        .control-btn {
+            background: linear-gradient(145deg, rgba(255, 107, 61, 0.2), rgba(255, 107, 61, 0.1));
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            color: var(--text);
+            font-size: 24px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .control-btn:active {
+            transform: scale(0.95);
+            background: var(--accent);
+        }
+
+        .control-btn:nth-child(1) {
+            grid-column: 2;
+        }
+
+        .control-btn:nth-child(2) {
+            grid-column: 1;
+            grid-row: 2;
+        }
+
+        .control-btn:nth-child(3) {
+            grid-column: 2;
+            grid-row: 2;
+        }
+
+        .control-btn:nth-child(4) {
+            grid-column: 3;
+            grid-row: 2;
+        }
+
+        .game-over {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--panel);
+            border: 2px solid var(--accent);
+            border-radius: 20px;
+            padding: 40px;
+            text-align: center;
+            z-index: 1000;
+            display: none;
+        }
+
+        .game-over.show {
+            display: block;
+        }
+
+        @media (max-width: 768px) {
+            #gameCanvas {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="game-container">
+        <div class="panel__header">
+            <div>
+                <p class="eyebrow">{{ level.difficulty }}</p>
+                <h1>{{ level.name }}</h1>
+                <p class="muted">{{ level.description }}</p>
+            </div>
+            <a href="/missions" class="btn secondary">← Retour</a>
+        </div>
+
+        <div class="game-stats">
+            <div class="stat-card">
+                <div class="stat-label">Score</div>
+                <div class="stat-value" id="current-score">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Meilleur</div>
+                <div class="stat-value" id="best-score">{{ progress.score if progress else 0 }}</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-label">Pièces</div>
+                <div class="stat-value" id="coins-left">0</div>
+            </div>
+        </div>
+
+        <canvas id="gameCanvas" width="600" height="600"></canvas>
+
+        <div class="controls">
+            <button class="control-btn" data-dir="up">↑</button>
+            <button class="control-btn" data-dir="left">←</button>
+            <button class="control-btn" data-dir="down">↓</button>
+            <button class="control-btn" data-dir="right">→</button>
+        </div>
+
+        <div class="game-over" id="game-over">
+            <h2>Game Over!</h2>
+            <p class="stat-value" id="final-score">0</p>
+            <p class="muted">points</p>
+            <button class="btn primary" onclick="location.reload()">Rejouer</button>
+            <a href="/missions" class="btn secondary">Retour aux missions</a>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/ambulance_game.js') }}"></script>
+</body>
+
+</html>

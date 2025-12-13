@@ -160,6 +160,9 @@
                       <span class="avatar" data-avatar="{{ entry.avatar }}">{{ avatar_emojis.get(entry.avatar, '🛰️')
                         }}</span>
                       <span>{{ entry.username }}</span>
+                      {% for badge in entry.badges %}
+                      <span class="badge" title="{{ badge.label }}">{{ badge.icon }}</span>
+                      {% endfor %}
                     </td>
                     <td>{{ entry.missions }}</td>
                     <td>{{ entry.score }}</td>
@@ -200,17 +203,26 @@
       <section class="panel panel--frost">
         <div class="panel__header">
           <div>
-            <p class="eyebrow">Journal néon</p>
-            <h2>Centre d'animation</h2>
-            <p class="muted">Animations GSAP : flux d'énergie, barres lumineuses et transitions douces.</p>
+            <p class="eyebrow">Accès rapide</p>
+            <h2>Navigation</h2>
           </div>
-          <button class="btn" id="simulate-btn">Simuler un succès</button>
         </div>
-        <div class="horizon">
-          <div class="beam" id="beam"></div>
-          <div class="scanner" id="scanner"></div>
-          <div class="pulse-line" id="pulse-line"></div>
-          <div class="logs" id="log-panel"></div>
+        <div class="grid-nav">
+          <a href="{{ url_for('missions_page') }}" class="nav-card">
+            <span class="nav-card__icon">🚁</span>
+            <h3>Missions</h3>
+            <p>Accéder au hangar</p>
+          </a>
+          <a href="{{ url_for('mini_game_page') }}" class="nav-card">
+            <span class="nav-card__icon">🎮</span>
+            <h3>Petit jeu</h3>
+            <p>Réflexes & vocabulaire</p>
+          </a>
+          <a href="{{ url_for('questionnaire_page') }}" class="nav-card">
+            <span class="nav-card__icon">📝</span>
+            <h3>Questionnaire</h3>
+            <p>Retours & validation</p>
+          </a>
         </div>
       </section>
       {% elif page == 'admin' %}
@@ -270,6 +282,14 @@
             </tbody>
           </table>
         </div>
+
+        <div style="margin-top: 40px;">
+          <h3>Gestion des points bonus</h3>
+          <p class="muted">Ajustez manuellement les points bonus des utilisateurs</p>
+          <button class="btn" onclick="loadAdminUsers()">Charger les utilisateurs</button>
+          <div id="admin-users-list" style="margin-top: 20px; display: grid; gap: 10px;"></div>
+        </div>
+
         <div class="alert hidden" id="admin-alert"></div>
       </section>
       {% elif page == 'missions' %}
@@ -454,6 +474,7 @@
       <span class="chip chip--ghost" id="profile-quiz-points">Questionnaires : 0</span>
       <span class="chip chip--ghost" id="profile-mission-points">Missions : 0</span>
       <span class="chip chip--ghost" id="profile-minigame-points">Mini-jeux : 0</span>
+      <div id="profile-badges" class="chip-row hidden" style="margin-top:8px;"></div>
     </div>
     <form class="form" id="profile-form">
       <label>Pseudo

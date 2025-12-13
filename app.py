@@ -30,6 +30,7 @@ def create_app():
         ensure_locked_column()
         ensure_level_category_column()
         ensure_progress_data_column()
+        ensure_bonus_points_column()
         bootstrap_levels()
         ensure_admin_account()
 
@@ -44,6 +45,7 @@ class User(db.Model):
     password_hash = db.Column(db.String(255), nullable=False)
     role = db.Column(db.String(20), nullable=False, default="participant")
     avatar = db.Column(db.String(40), default="alpha")
+    bonus_points = db.Column(db.Integer, default=0)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     progress = db.relationship("Progress", back_populates="user", cascade="all, delete")
 
@@ -132,6 +134,14 @@ LEVEL_SEED = [
         "icon": "brain",
         "category": "minigame",
     },
+    {
+        "slug": "ambulance_chase",
+        "name": "Course d'Ambulance",
+        "description": "Collectez des pièces avec votre ambulance tout en évitant les dépanneuses !",
+        "difficulty": "moyen",
+        "icon": "joystick",
+        "category": "minigame",
+    },
 ]
 
 AVATAR_CHOICES = {"alpha", "bravo", "charlie", "delta"}
@@ -207,6 +217,22 @@ def ensure_locked_column():
             text('ALTER TABLE "level" ADD COLUMN IF NOT EXISTS is_locked BOOLEAN DEFAULT FALSE')
         )
     db.session.commit()
+
+def ensure_bonus_points_column():
+    inspector = inspect(db.engine)
+    columns = inspector.get_columns("user")
+    column_names = [c["name"] for c in columns]
+    if "bonus_points" in column_names:
+        return
+
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE user ADD COLUMN bonus_points INTEGER DEFAULT 0"))
+            conn.commit()
+    else:
+        db.session.execute(text("ALTER TABLE user ADD COLUMN bonus_points INTEGER DEFAULT 0"))
+        db.session.commit()
 
 
 def ensure_level_category_column():
@@ -358,6 +384,16 @@ def current_user():
         return None
     return User.query.get(user_id)
 
+def get_user_badges(points):
+    badges = []
+    if points >= 1000:
+        badges.append({"icon": "🥇", "label": "Or", "threshold": 1000})
+    elif points >= 500:
+        badges.append({"icon": "🥈", "label": "Argent", "threshold": 500})
+    elif points >= 200:
+        badges.append({"icon": "🥉", "label": "Bronze", "threshold": 200})
+    return badges
+
 
 def register_routes(app: Flask) -> None:
     def build_dashboard_context(user: User):
@@ -399,15 +435,25 @@ def register_routes(app: Flask) -> None:
             .order_by((func.coalesce(progress_scores.c.mission_score, 0) + func.coalesce(questionnaire_scores.c.quiz_score, 0)).desc())
             .all()
         )
-        leaderboard = [
-            {
+        leaderboard = []
+        for row in leaderboard_rows:
+            # score is mission + quiz. We need to fetch bonus points separately or include it in the query.
+            # Simplified approach: fetch user object or trust the query. 
+            # The query above DOES NOT include bonus points. Let's fix the query or the loop.
+            # Re-fetching user for simplicity as this is low traffic app.
+            u = User.query.filter_by(username=row[1]).first()
+            bonus = u.bonus_points if u else 0
+            
+            base_score = int((row[4] or 0) + (row[5] or 0))
+            total_score = base_score + bonus
+            
+            leaderboard.append({
                 "username": row[1],
                 "avatar": row[2] or "alpha",
                 "missions": row[3],
-                "score": int((row[4] or 0) + (row[5] or 0)),
-            }
-            for row in leaderboard_rows
-        ]
+                "score": total_score,
+                "badges": get_user_badges(total_score)
+            })
         trophies = [
             {
                 "icon": "🏅",
@@ -499,8 +545,12 @@ def register_routes(app: Flask) -> None:
         if level.slug == 'arret_cardiaque':
             return render_template("mission_interactive.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
         
+        
         if level.slug == 'pendu_300':
             return render_template("mission_pendu.html", level=level, progress=progress, total_score=total_score)
+        
+        if level.slug == 'ambulance_chase':
+            return render_template("mission_ambulance.html", level=level, progress=progress)
             
         return render_template("mission.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
 
@@ -608,6 +658,8 @@ def register_routes(app: Flask) -> None:
         quiz_points = sum(result.score for result in questionnaire_results)
         mission_points = sum(p.score for p in user.progress if p.level.category == 'mission')
         minigame_points = sum(p.score for p in user.progress if p.level.category == 'minigame')
+        bonus_points = user.bonus_points or 0
+        total_points = quiz_points + mission_points + minigame_points + bonus_points
         
         return jsonify(
             {
@@ -617,7 +669,9 @@ def register_routes(app: Flask) -> None:
                 "quiz_points": quiz_points,
                 "mission_points": mission_points,
                 "minigame_points": minigame_points,
-                "total_points": quiz_points + mission_points + minigame_points,
+                "bonus_points": bonus_points,
+                "total_points": total_points,
+                "badges": get_user_badges(total_points),
             }
         )
 
@@ -660,13 +714,70 @@ def register_routes(app: Flask) -> None:
         session.pop("user_id", None)
         return jsonify({"ok": True})
 
-    @app.route("/api/admin/users")
+    @app.route("/api/ambulance/score", methods=["POST"])
+    def api_ambulance_score():
+        user = current_user()
+        if not user:
+            return jsonify({"error": "Authentification requise"}), 401
+        
+        payload = request.get_json()
+        score = payload.get("score", 0)
+        
+        level = Level.query.filter_by(slug="ambulance_chase").first_or_404()
+        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+        
+        if not progress:
+            progress = Progress(user_id=user.id, level_id=level.id, status="en_cours")
+            db.session.add(progress)
+        
+        # Update score if new score is higher
+        if score > progress.score:
+            progress.score = score
+            progress.status = "termine"
+        
+        db.session.commit()
+        
+        return jsonify({
+            "ok": True,
+            "score": progress.score,
+            "best_score": progress.score
+        })
+
+    @app.route("/api/admin/users", methods=["GET"])
     def api_admin_users():
         _, error = ensure_admin_access()
         if error:
             return error
-        users = User.query.order_by(User.created_at.desc()).all()
-        return jsonify({"users": [serialize_user_admin(u) for u in users]})
+        
+        users = User.query.all()
+        # Return list directly to match main.js expectation
+        return jsonify([
+            {
+                "id": u.id,
+                "username": u.username,
+                "email": u.email,
+                "bonus_points": u.bonus_points or 0
+            }
+            for u in users
+        ])
+
+    @app.route("/api/admin/users/<int:user_id>/bonus", methods=["POST"])
+    def api_admin_update_bonus(user_id):
+        _, error = ensure_admin_access()
+        if error:
+            return error
+        
+        data = request.json
+        bonus = data.get("bonus", 0)
+        
+        target_user = User.query.get(user_id)
+        if not target_user:
+            return jsonify({"error": "User not found"}), 404
+            
+        target_user.bonus_points = bonus
+        db.session.commit()
+        
+        return jsonify({"success": True, "bonus_points": target_user.bonus_points})
 
     @app.route("/api/admin/users/<int:user_id>", methods=["PUT"])
     def api_admin_update_user(user_id: int):
@@ -1017,6 +1128,8 @@ def register_routes(app: Flask) -> None:
             "lost": data["lost"],
             "finished": len(data["played_indices"]) >= 300
         })
+
+
 
 
 app = create_app()

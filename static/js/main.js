@@ -31,6 +31,7 @@ const profileTotalPoints = qs('#profile-total-points');
 const profileQuizPoints = qs('#profile-quiz-points');
 const profileMissionPoints = qs('#profile-mission-points');
 const profileMinigamePoints = qs('#profile-minigame-points');
+const profileBadges = qs('#profile-badges');
 const avatarChips = qsa('#profile-avatars .avatar-chip');
 const wizardStepper = qs('#wizard-stepper');
 const wizardBody = qs('#wizard-body');
@@ -193,6 +194,22 @@ function updateProfileMetrics(data) {
   if (profileQuizPoints) profileQuizPoints.textContent = `Questionnaires : ${data.quiz_points ?? 0}`;
   if (profileMissionPoints) profileMissionPoints.textContent = `Missions : ${data.mission_points ?? 0}`;
   if (profileMinigamePoints) profileMinigamePoints.textContent = `Mini-jeux : ${data.minigame_points ?? 0}`;
+
+  if (profileBadges) {
+    profileBadges.innerHTML = '';
+    if (data.badges && data.badges.length > 0) {
+      data.badges.forEach(b => {
+        const span = document.createElement('span');
+        span.className = 'badge';
+        span.textContent = b.icon;
+        span.title = b.label;
+        profileBadges.appendChild(span);
+      });
+      profileBadges.classList.remove('hidden');
+    } else {
+      profileBadges.classList.add('hidden');
+    }
+  }
 }
 
 async function loadProfileData() {
@@ -912,19 +929,13 @@ function setupPlayerNavigation() {
   if (playerNext) {
     playerNext.addEventListener('click', () => {
       if (!playerState.questionnaire) return;
-      const { isCorrect, skipped } = showAnswerFeedback();
-      if (skipped) return;
-      const total = playerState.questionnaire.questions.length;
-      const revealDelay = isCorrect ? 4000 : 3000;
-      setTimeout(() => {
-        if (playerState.index >= total - 1) {
-          showResult();
-          setTimeout(() => closePlayer(), 1800);
-          return;
-        }
-        playerState.index += 1;
-        renderPlayerQuestion();
-      }, revealDelay);
+      if (playerState.index >= total - 1) {
+        showResult();
+        setTimeout(() => closePlayer(), 1800);
+        return;
+      }
+      playerState.index += 1;
+      renderPlayerQuestion();
     });
   }
 }
@@ -1254,17 +1265,94 @@ async function init() {
   log('Interface initialisée avec GSAP et Flask.');
 }
 
-function playSplashThenInit() {
+async function playSplashThenInit() {
   const splash = qs('#splash');
   const appShell = qs('#app-shell');
 
-  // L'écran principal n'est accessible qu'une fois connecté :
-  // on supprime donc l'animation et on force l'état authentifié
-  // pour les prochains chargements.
-  localStorage.setItem('isAuthenticated', 'true');
-  splash?.classList.add('hidden');
-  appShell?.classList.remove('hidden');
-  init();
+  try {
+    // L'écran principal n'est accessible qu'une fois connecté :
+    // on supprime donc l'animation et on force l'état authentifié
+    // pour les prochains chargements.
+    localStorage.setItem('isAuthenticated', 'true');
+    splash?.classList.add('hidden');
+    appShell?.classList.remove('hidden');
+    await init();
+  } catch (error) {
+    console.error('Erreur lors de l\'initialisation:', error);
+    // En cas d'erreur, on affiche quand même l'app
+    splash?.classList.add('hidden');
+    appShell?.classList.remove('hidden');
+  }
 }
+
+// --- ADMIN FUNCTIONS ---
+async function loadAdminUsers() {
+  const container = document.getElementById('admin-users-list');
+  if (!container) return;
+
+  container.innerHTML = 'Chargement...';
+
+  try {
+    const res = await fetch('/api/admin/users');
+    if (!res.ok) throw new Error('Failed to load users');
+    const users = await res.json();
+
+    // Ensure users is an array
+    if (!Array.isArray(users)) {
+      container.innerHTML = 'Format de réponse invalide.';
+      console.error('Expected array, got:', users);
+      return;
+    }
+
+    container.innerHTML = '';
+    users.forEach(u => {
+      const div = document.createElement('div');
+      div.className = 'panel';
+      div.style.display = 'flex';
+      div.style.justifyContent = 'space-between';
+      div.style.alignItems = 'center';
+      div.innerHTML = `
+                <div>
+                    <strong>${u.username}</strong> (${u.email})
+                </div>
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <label style="font-size:12px;">Bonus:</label>
+                    <input type="number" value="${u.bonus_points}" id="bonus-${u.id}" style="width:80px; padding:4px;" />
+                    <button class="btn" onclick="saveBonusPoints(${u.id})">Sauver</button>
+                </div>
+            `;
+      container.appendChild(div);
+    });
+  } catch (e) {
+    container.innerHTML = 'Erreur lors du chargement des utilisateurs.';
+    console.error(e);
+  }
+}
+
+window.loadAdminUsers = loadAdminUsers;
+
+async function saveBonusPoints(userId) {
+  const input = document.getElementById(`bonus-${userId}`);
+  const bonus = parseInt(input.value);
+
+  try {
+    const res = await fetch(`/api/admin/users/${userId}/bonus`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ bonus })
+    });
+
+    if (res.ok) {
+      alert('Points bonus mis à jour !');
+    } else {
+      alert('Erreur lors de la mise à jour.');
+    }
+  } catch (e) {
+    console.error(e);
+    alert('Erreur technique.');
+  }
+}
+
+window.saveBonusPoints = saveBonusPoints;
 
 document.addEventListener('DOMContentLoaded', playSplashThenInit);
