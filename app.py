@@ -231,7 +231,8 @@ def ensure_bonus_points_column():
             conn.execute(text("ALTER TABLE user ADD COLUMN bonus_points INTEGER DEFAULT 0"))
             conn.commit()
     else:
-        db.session.execute(text("ALTER TABLE user ADD COLUMN bonus_points INTEGER DEFAULT 0"))
+        # PostgreSQL: 'user' is a reserved word, must use quotes
+        db.session.execute(text('ALTER TABLE "user" ADD COLUMN bonus_points INTEGER DEFAULT 0'))
         db.session.commit()
 
 
