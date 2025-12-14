@@ -319,16 +319,23 @@ function updateScore() {
     gsap.fromTo(scoreDisplay, { scale: 1.5 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.3)' });
 }
 
+
 // CPR Minigame
 let cprClicks = [];
 let cprActive = false;
 let cprStreak = 0;
+let cprErrors = 0; // Added error counter
 
 function startCPRMinigame() {
     minigameOverlay.classList.remove('hidden');
     cprActive = true;
     cprClicks = [];
     cprStreak = 0;
+    cprErrors = 0;
+
+    // Reset previous skip button if any
+    const existingSkip = qs('#cpr-skip-btn');
+    if (existingSkip) existingSkip.remove();
 
     const btn = qs('#cpr-btn');
     const bpmDisplay = qs('#bpm-counter');
@@ -364,6 +371,22 @@ function startCPRMinigame() {
                 gsap.to(btn, { x: 5, duration: 0.05, yoyo: true, repeat: 3 });
                 cprStreak = 0; // Reset streak
                 currentState.score = Math.max(0, currentState.score - 1);
+
+                cprErrors++;
+                if (cprErrors >= 2 && !qs('#cpr-skip-btn')) {
+                    const skipBtn = document.createElement('button');
+                    skipBtn.id = 'cpr-skip-btn';
+                    skipBtn.className = 'btn ghost small';
+                    skipBtn.style.marginTop = '2rem';
+                    skipBtn.textContent = 'Continuer quand même';
+                    skipBtn.onclick = () => {
+                        endCPRMinigame();
+                    };
+                    minigameOverlay.appendChild(skipBtn);
+
+                    // Animate appearance
+                    gsap.fromTo(skipBtn, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5 });
+                }
             }
 
             // Visual Update for Streak
@@ -473,12 +496,18 @@ async function finishMission(success) {
     // Save progress
     if (success) {
         try {
-            await fetch(`/api/progress/${MISSION_CONTEXT.levelId}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'termine', score: currentState.score }),
-            });
-        } catch (e) { console.error(e); }
+            if (window.MISSION_CONTEXT && window.MISSION_CONTEXT.levelId) {
+                const res = await fetch(`/api/progress/${window.MISSION_CONTEXT.levelId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ status: 'termine', score: currentState.score }),
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    qs('#end-score').textContent = data.score;
+                }
+            }
+        } catch (e) { console.error('Erreur sauvegarde', e); }
     }
 }
 

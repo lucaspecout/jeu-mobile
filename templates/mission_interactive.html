@@ -352,8 +352,8 @@
   <script>
     window.MISSION_CONTEXT = {
       levelId: {{ level.id }},
-    slug: { { level.slug | tojson } },
-    savedScore: { { progress.score if progress else 0 } }
+      slug: {{ level.slug | tojson }},
+      savedScore: {{ progress.score if progress else 0 }}
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>

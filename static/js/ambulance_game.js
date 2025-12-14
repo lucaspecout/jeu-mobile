@@ -6,11 +6,13 @@ const ctx = canvas.getContext('2d');
 const TILE_SIZE = 30;
 const GRID_WIDTH = 20;
 const GRID_HEIGHT = 20;
-const COINS_PER_POINT = 4; // 4 pièces = 1 point
+const COINS_PER_POINT = 4;
+const PLAYER_SPEED = 200; // Plus rapide (0.2s)
+const ENEMY_SPEED = 400;  // Plus lent (0.4s)
 
 // Game state
 let gameState = {
-    player: { x: 1, y: 1, dir: 'right' },
+    player: { x: 1, y: 1, dir: 'right', lastMove: 0 }, // Added lastMove
     enemies: [],
     coins: [],
     coinsCollected: 0,
@@ -18,7 +20,7 @@ let gameState = {
     gameOver: false,
     bestScore: parseInt(document.getElementById('best-score').textContent) || 0,
     lastSpawnTime: 0,
-    spawnInterval: 10000 // Spawn new enemy every 10 seconds
+    spawnInterval: 10000
 };
 
 // Maze layout (1 = wall, 0 = path)
@@ -108,6 +110,10 @@ function setupControls() {
     document.addEventListener('keydown', (e) => {
         if (gameState.gameOver) return;
 
+        const now = Date.now();
+        // Cooldown check
+        if (now - gameState.player.lastMove < PLAYER_SPEED) return;
+
         const keyMap = {
             'ArrowUp': 'up',
             'ArrowDown': 'down',
@@ -118,6 +124,7 @@ function setupControls() {
         if (keyMap[e.key]) {
             e.preventDefault();
             movePlayer(keyMap[e.key]);
+            gameState.player.lastMove = now;
         }
     });
 
@@ -125,7 +132,108 @@ function setupControls() {
     document.querySelectorAll('.control-btn').forEach(btn => {
         btn.addEventListener('click', () => {
             if (!gameState.gameOver) {
+                const now = Date.now();
+                if (now - gameState.player.lastMove < PLAYER_SPEED) return;
+
                 movePlayer(btn.dataset.dir);
+                gameState.player.lastMove = now;
+            }
+        });
+    });
+}
+
+
+
+// Initialize game
+function init() {
+    // Place coins on all empty tiles
+    for (let y = 0; y < GRID_HEIGHT; y++) {
+        for (let x = 0; x < GRID_WIDTH; x++) {
+            if (maze[y][x] === 0 && !(x === 1 && y === 1)) {
+                gameState.coins.push({ x, y });
+            }
+        }
+    }
+
+    // Create enemies (tow trucks) - 8 for more difficulty
+    gameState.enemies = [
+        { x: 18, y: 1, dir: 'left', color: '#ff6b3d' },
+        { x: 1, y: 18, dir: 'right', color: '#ff8c42' },
+        { x: 18, y: 18, dir: 'left', color: '#ffa500' },
+        { x: 10, y: 1, dir: 'down', color: '#ff4500' },
+        { x: 1, y: 10, dir: 'right', color: '#ff6347' },
+        { x: 18, y: 10, dir: 'left', color: '#ff7f50' },
+        { x: 10, y: 18, dir: 'up', color: '#ff8c69' },
+        { x: 5, y: 5, dir: 'right', color: '#ffa07a' }
+    ];
+
+    updateCoinsDisplay();
+    setupControls();
+    gameState.lastSpawnTime = Date.now();
+    gameLoop();
+}
+
+// Spawn a new enemy at a random empty corner
+function spawnNewEnemy() {
+    const colors = ['#ff6b3d', '#ff8c42', '#ffa500', '#ff4500', '#ff6347', '#ff7f50', '#ff8c69', '#ffa07a'];
+    const corners = [
+        { x: 1, y: 1 },
+        { x: 18, y: 1 },
+        { x: 1, y: 18 },
+        { x: 18, y: 18 }
+    ];
+
+    // Find a corner that's not occupied by player
+    const availableCorners = corners.filter(c =>
+        !(c.x === gameState.player.x && c.y === gameState.player.y)
+    );
+
+    if (availableCorners.length > 0) {
+        const spawn = availableCorners[Math.floor(Math.random() * availableCorners.length)];
+        const color = colors[gameState.enemies.length % colors.length];
+
+        gameState.enemies.push({
+            x: spawn.x,
+            y: spawn.y,
+            dir: 'right',
+            color: color
+        });
+    }
+}
+
+// Setup keyboard and touch controls
+function setupControls() {
+    // Keyboard
+    document.addEventListener('keydown', (e) => {
+        if (gameState.gameOver) return;
+
+        const now = Date.now();
+        // Cooldown check
+        if (now - gameState.player.lastMove < PLAYER_SPEED) return;
+
+        const keyMap = {
+            'ArrowUp': 'up',
+            'ArrowDown': 'down',
+            'ArrowLeft': 'left',
+            'ArrowRight': 'right'
+        };
+
+        if (keyMap[e.key]) {
+            e.preventDefault();
+            movePlayer(keyMap[e.key]);
+            gameState.player.lastMove = now;
+        }
+    });
+
+    // Touch controls
+    document.querySelectorAll('.control-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!gameState.gameOver) {
+                const now = Date.now();
+                if (now - gameState.player.lastMove < PLAYER_SPEED) return;
+
+                movePlayer(btn.dataset.dir);
+                gameState.player.lastMove = now;
             }
         });
     });
@@ -306,8 +414,8 @@ function gameLoop() {
 
     const now = Date.now();
 
-    // Move enemies every 500ms
-    if (now - lastEnemyMove > 500) {
+    // Move enemies every ENEMY_SPEED ms
+    if (now - lastEnemyMove > ENEMY_SPEED) {
         moveEnemies();
         lastEnemyMove = now;
     }
@@ -342,6 +450,15 @@ async function endGame(won) {
     }
 
     // Show game over screen
+    const gameOverTitle = document.querySelector('#game-over h2');
+    if (won) {
+        gameOverTitle.textContent = 'Victoire !';
+        gameOverTitle.style.color = '#2ecc71'; // Green
+    } else {
+        gameOverTitle.textContent = 'Game Over!';
+        gameOverTitle.style.color = 'var(--accent)';
+    }
+
     document.getElementById('final-score').textContent = gameState.score;
     document.getElementById('game-over').classList.add('show');
 }

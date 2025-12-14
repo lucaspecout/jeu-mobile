@@ -116,7 +116,7 @@
     slug: { { level.slug | tojson } },
     savedScore: { { progress.score if progress else 0 } },
     status: { { progress.status | tojson if progress else '"non_commence"' } }
-      };
+    };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
   <script src="{{ url_for('static', filename='js/mission.js') }}"></script>
