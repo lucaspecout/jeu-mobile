@@ -504,7 +504,7 @@ function setupMenuActions() {
     if (lockBtn) {
       const levelId = lockBtn.dataset.id;
       try {
-        await postJson(`/ api / admin / levels / ${levelId}/toggle_lock`, {});
+        await postJson(`/api/admin/levels/${levelId}/toggle_lock`, {});
         await refreshMenu();
       } catch (err) {
         setAlert(err.message);
@@ -529,6 +529,33 @@ function setupMenuActions() {
       setAlert(err.message);
     }
   });
+}
+
+// ... (skipping unchanged parts)
+
+function setupPlayerNavigation() {
+  if (closePlayerBtn) closePlayerBtn.addEventListener('click', closePlayer);
+  if (playerOverlay) playerOverlay.addEventListener('click', closePlayer);
+  if (playerPrev) {
+    playerPrev.addEventListener('click', () => {
+      if (!playerState.questionnaire || playerState.index === 0) return;
+      playerState.index -= 1;
+      renderPlayerQuestion();
+    });
+  }
+  if (playerNext) {
+    playerNext.addEventListener('click', () => {
+      if (!playerState.questionnaire) return;
+      const total = playerState.questionnaire.questions.length;
+      if (playerState.index >= total - 1) {
+        showResult();
+        setTimeout(() => closePlayer(), 1800);
+        return;
+      }
+      playerState.index += 1;
+      renderPlayerQuestion();
+    });
+  }
 }
 
 function setupTopbarToggle() {
@@ -1006,6 +1033,7 @@ function setupPlayerNavigation() {
   if (playerNext) {
     playerNext.addEventListener('click', () => {
       if (!playerState.questionnaire) return;
+      const total = playerState.questionnaire.questions.length;
       if (playerState.index >= total - 1) {
         showResult();
         setTimeout(() => closePlayer(), 1800);
