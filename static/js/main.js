@@ -195,20 +195,69 @@ function updateProfileMetrics(data) {
   if (profileMissionPoints) profileMissionPoints.textContent = `Missions : ${data.mission_points ?? 0}`;
   if (profileMinigamePoints) profileMinigamePoints.textContent = `Mini-jeux : ${data.minigame_points ?? 0}`;
 
+  if (profileMinigamePoints) profileMinigamePoints.textContent = `Mini-jeux : ${data.minigame_points ?? 0}`;
+
   if (profileBadges) {
     profileBadges.innerHTML = '';
-    if (data.badges && data.badges.length > 0) {
-      data.badges.forEach(b => {
-        const span = document.createElement('span');
-        span.className = 'badge';
-        span.textContent = b.icon;
-        span.title = b.label;
-        profileBadges.appendChild(span);
+    profileBadges.classList.remove('hidden');
+
+    // Badge Definitions
+    const ALL_BADGES = [
+      // Individuel
+      { category: 'individual', icon: '🏅', title: 'Éclaireur', desc: '3 missions activées', condition: (d) => (d.mission_points > 0 && d.total_points > 50) }, // Simplified condition
+      { category: 'individual', icon: '🔥', title: 'Expert', desc: '1000 points cumulés', condition: (d) => (d.total_points || 0) >= 1000 },
+      { category: 'individual', icon: '🧠', title: 'Savant', desc: 'Lexique 300 terminés', condition: (d) => (d.minigame_points || 0) >= 3000 },
+
+      // Collectif / Groupe
+      { category: 'group', icon: '🚑', title: 'Chef d\'équipe', desc: 'Accès Admin/Formateur', condition: (d) => ['admin', 'formateur'].includes(d.role) },
+      { category: 'group', icon: '🤝', title: 'Binôme', desc: 'Jeu lancé en mode "équipe"', condition: (d) => false }, // Placeholder
+      { category: 'group', icon: '📢', title: 'Porte-parole', desc: 'A partagé un résultat', condition: (d) => false } // Placeholder
+    ];
+
+    // Get earned titles from backend data (assuming data.badges contains objects {title: ...} or strings)
+    // The backend `serialize_user` returns `badges` which is a list of strings or objects. 
+    // Let's assume the backend might send *some* badges, but we also calculate some on the fly for display "locked/unlocked"
+    // To match the user request "je veux que les trophe peronelle aparaisse ... pour savoir comment avoir", we should show ALL and highlight earned.
+
+    // Check what backend sends. Usually it sends calculated badges based on score.
+    // Let's rely on our frontend conditions OR backend data.
+    // Ideally we merge: if backend says earned OR condition met.
+
+    const earnedTitles = new Set((data.badges || []).map(b => typeof b === 'string' ? b : b.title));
+
+    // Render Function
+    const renderCategory = (title, type) => {
+      const section = document.createElement('div');
+      section.className = 'badge-category';
+      section.innerHTML = `<h4>${title}</h4>`;
+
+      const grid = document.createElement('div');
+      grid.className = 'badges-grid';
+
+      ALL_BADGES.filter(b => b.category === type).forEach(badge => {
+        // Check if earned via backend data OR local condition check
+        const isEarned = earnedTitles.has(badge.title) || badge.condition(data);
+
+        const card = document.createElement('div');
+        card.className = `badge-item ${isEarned ? 'earned' : 'locked'}`;
+        card.innerHTML = `
+                <div class="badge-icon">${badge.icon}</div>
+                <div class="badge-info">
+                    <strong>${badge.title}</strong>
+                    <span>${badge.desc}</span>
+                </div>
+            `;
+        grid.appendChild(card);
       });
-      profileBadges.classList.remove('hidden');
-    } else {
-      profileBadges.classList.add('hidden');
-    }
+
+      if (grid.children.length > 0) {
+        section.appendChild(grid);
+        profileBadges.appendChild(section);
+      }
+    };
+
+    renderCategory('🏆 Individuel', 'individual');
+    renderCategory('👥 Collectif', 'group');
   }
 }
 
@@ -259,11 +308,35 @@ function clearProfileAlert() {
   if (profileAlert) profileAlert.classList.add('hidden');
 }
 
+// Max scores for each level
+const MAX_SCORES = {
+  'arret_cardiaque': 150,
+  'bilan_inconscient': 120,
+  'pendu_300': 3000,
+  'ambulance_chase': 50
+};
+
+function getStarRating(score, maxScore) {
+  if (!score || !maxScore) return '';
+  const pct = (score / maxScore) * 100;
+
+  if (pct >= 90) return '⭐⭐⭐';
+  if (pct >= 60) return '⭐⭐';
+  if (pct >= 30) return '⭐';
+  return '';
+}
+
 function renderLevel(level) {
   const wrapper = document.createElement('article');
   const isFeatured = level.slug === FEATURED_MISSION_SLUG;
   const isLocked = level.is_locked;
   const isAdmin = currentUser?.role === 'admin';
+  const score = level.progress ? level.progress.score : 0;
+
+  // Determine max score
+  const maxScore = MAX_SCORES[level.slug] || 150; // Default to 150 if unknown
+
+  const stars = level.progress ? getStarRating(score, maxScore) : '';
 
   wrapper.className = `menu-card mission-${level.slug} ${isFeatured ? 'menu-card--featured' : ''} ${isLocked ? 'locked' : ''}`;
 
@@ -281,14 +354,18 @@ function renderLevel(level) {
   wrapper.innerHTML = `
     <div class="icon">${iconFor(level.icon)}</div>
     ${isLocked ? '<div style="position:absolute;top:1rem;right:1rem;font-size:1.5rem;">🔒</div>' : ''}
+    <div style="position:absolute;top:1rem;right:1rem;font-size:1rem;text-align:right;">
+        <div>${stars}</div>
+        ${level.progress && level.progress.score !== undefined ? `<div style="font-size:0.8rem;opacity:0.8;">${level.progress.score} / ${maxScore}</div>` : ''}
+    </div>
     <p class="eyebrow">${level.slug}</p>
     <h3>${level.name}</h3>
     <p class="desc">${level.description}</p>
     <p class="difficulty">${level.difficulty.toUpperCase()}</p>
     <div class="launch">
       ${isFeatured ? '<span class="chip chip--ghost">Mission mise en avant</span>' : ''}
-      <button class="btn primary" data-level="${level.id}" data-slug="${level.slug}" ${isLocked && !isAdmin ? 'disabled' : ''}>
-        ${isLocked ? (isAdmin ? 'Force (Admin)' : 'Verrouillé') : 'Lancer'}
+      <button class="btn ${['termine', 'terminee'].includes(level.progress?.status) ? 'secondary' : 'primary'}" data-level="${level.id}" data-slug="${level.slug}" ${isLocked && !isAdmin ? 'disabled' : ''}>
+        ${isLocked ? (isAdmin ? 'Force (Admin)' : 'Verrouillé') : (['termine', 'terminee'].includes(level.progress?.status) ? 'Refaire' : 'Lancer')}
       </button>
       <span class="chip">${level.progress ? level.progress.status : 'Nouveau'}</span>
     </div>
@@ -427,7 +504,7 @@ function setupMenuActions() {
     if (lockBtn) {
       const levelId = lockBtn.dataset.id;
       try {
-        await postJson(`/api/admin/levels/${levelId}/toggle_lock`, {});
+        await postJson(`/ api / admin / levels / ${levelId}/toggle_lock`, {});
         await refreshMenu();
       } catch (err) {
         setAlert(err.message);
@@ -443,7 +520,7 @@ function setupMenuActions() {
     const slug = btn.dataset.slug;
     animateSuccess(`Mission ${levelId} lancée`);
     try {
-      await postJson(`/api/progress/${levelId}`, { status: 'en_cours', score: Math.floor(Math.random() * 100) });
+      await postJson(`/api/progress/${levelId}`, { status: 'en_cours' });
       await refreshMenu();
       if (slug) {
         window.location.href = `/mission/${slug}`;

@@ -1,0 +1,543 @@
+<!doctype html>
+<html lang="fr">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <!-- Cache Busting Meta Tags -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+
+    <title>{{ level.name }} - Protec Rescue 38</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=12">
+    <style>
+        /* Premium Mission Styles */
+        :root {
+            --protec-orange: #FF6B00;
+            --protec-blue: #00458f;
+            --glass-bg: rgba(16, 18, 27, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+        }
+
+        .mission-interactive {
+            position: relative;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+        }
+
+        .scene-container {
+            position: absolute;
+            inset: 0;
+            z-index: 0;
+        }
+
+        .scene-image {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out, transform 6s ease-out;
+            position: absolute;
+            inset: 0;
+        }
+
+        .scene-image.active {
+            opacity: 1;
+            transform: scale(1.05);
+        }
+
+        /* HUD */
+        .hud-top {
+            position: relative;
+            z-index: 20;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.5rem 2rem;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.4) 60%, transparent 100%);
+        }
+
+        .hud-status {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .chip {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: white;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .chip--highlight {
+            background: var(--protec-orange);
+            border-color: var(--protec-orange);
+            color: white;
+        }
+
+        /* Dialogue & Choices */
+        .interaction-layer {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding-bottom: 3rem;
+            pointer-events: none;
+            /* Let clicks pass through to potential scene elements */
+        }
+
+        .dialogue-box {
+            margin: 0 auto;
+            width: 90%;
+            max-width: 800px;
+            background: rgba(10, 10, 12, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: 24px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            transform: translateY(20px);
+            /* Opacity handling improved for Fail-Safe */
+            /* Animation handled by JS/GSAP */
+        }
+
+        /* Keyframes removed */
+
+        .speaker-name {
+            color: var(--protec-orange);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .dialogue-text {
+            font-size: 1.35rem;
+            line-height: 1.5;
+            color: #fff;
+            font-weight: 500;
+            margin-bottom: 2rem;
+        }
+
+        .choices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+
+        .choice-btn {
+            padding: 1.2rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 12px;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            text-align: left;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .choice-btn:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-2px);
+            border-color: rgba(255, 255, 255, 0.4);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .choice-btn.correct {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            color: #00ff88;
+        }
+
+        .choice-btn.incorrect {
+            background: rgba(255, 63, 63, 0.2);
+            border-color: #ff3f3f;
+            color: #ff3f3f;
+        }
+
+        /* Minigames Overlay Generic */
+        .minigame-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.7);
+            /* Plus transparent pour voir la scène */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+        }
+
+        .minigame-content {
+            background: rgba(16, 18, 27, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 24px;
+            padding: 2rem;
+            max-width: 900px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .minigame-title {
+            font-size: 2rem;
+            font-weight: 700;
+            color: white;
+            margin-bottom: 0.5rem;
+        }
+
+        .minigame-subtitle {
+            color: #aaa;
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+        }
+
+        /* LVA Minigame */
+        .lva-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            aspect-ratio: 16/9;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .lva-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .lva-zone {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border: 3px dashed rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .lva-zone::after {
+            content: '+';
+            font-size: 2rem;
+            color: white;
+            opacity: 0.7;
+        }
+
+        .lva-zone:hover {
+            background: rgba(0, 255, 136, 0.2);
+            border-color: #00ff88;
+            transform: scale(1.1);
+        }
+
+        .lva-zone.clicked {
+            background: rgba(0, 255, 136, 0.4);
+            border-color: #00ff88;
+            border-style: solid;
+        }
+
+        .lva-zone.clicked::after {
+            content: '✓';
+        }
+
+        /* PLS Minigame */
+        .pls-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            width: 100%;
+        }
+
+        .pls-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .pls-card:hover {
+            background: rgba(255, 255, 255, 0.1);
+            border-color: var(--protec-orange);
+            transform: translateY(-5px);
+        }
+
+        .pls-card.selected {
+            background: rgba(0, 255, 136, 0.1);
+            border-color: #00ff88;
+        }
+
+        .pls-card.wrong {
+            border-color: #ff3f3f;
+            animation: shake 0.5s;
+        }
+
+        .pls-icon {
+            font-size: 2.5rem;
+        }
+
+        /* VES Minigame */
+        .ves-interface {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .breath-indicator {
+            width: 200px;
+            height: 200px;
+            border-radius: 50%;
+            background: conic-gradient(var(--protec-orange) 0%, transparent 0%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            box-shadow: 0 0 30px rgba(255, 107, 0, 0.2);
+        }
+
+        .breath-indicator::before {
+            content: '';
+            position: absolute;
+            inset: 10px;
+            background: #111;
+            border-radius: 50%;
+        }
+
+        .timer-text {
+            position: absolute;
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: white;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .tap-btn {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            border: 4px solid var(--protec-blue);
+            background: rgba(0, 69, 143, 0.3);
+            color: white;
+            font-weight: 700;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: all 0.1s;
+            text-transform: uppercase;
+            box-shadow: 0 0 20px rgba(0, 69, 143, 0.4);
+        }
+
+        .tap-btn:active {
+            transform: scale(0.9);
+            background: var(--protec-blue);
+        }
+
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            25% {
+                transform: translateX(-5px);
+            }
+
+            75% {
+                transform: translateX(5px);
+            }
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="mission-interactive">
+        <!-- Scene Backgrounds -->
+        <div class="scene-container" id="scenes-wrapper">
+            <!-- Injected by JS -->
+        </div>
+
+        <!-- Top HUD -->
+        <div class="hud-top">
+            <a href="{{ url_for('missions_page') }}" class="btn ghost"
+                style="color: white; border-color: rgba(255,255,255,0.3);">← Quitter</a>
+            <div class="hud-status">
+                <span class="chip" id="phase-display">Phase 1</span>
+                <span class="chip chip--highlight" id="score-display">0 XP</span>
+            </div>
+        </div>
+
+        <!-- Interaction Layer (Bottom) -->
+        <div class="interaction-layer">
+            <div id="dialogue-container" class="dialogue-box">
+                <div id="speaker-name" class="speaker-name">Chef d'équipe</div>
+                <div id="dialogue-text" class="dialogue-text">...</div>
+                <div id="choices-container" class="choices-grid">
+                    <!-- Buttons injected by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- LVA Minigame Overlay -->
+        <div id="lva-overlay" class="minigame-overlay hidden">
+            <div class="minigame-content">
+                <h2 class="minigame-title">Libération des Voies Aériennes</h2>
+                <p class="minigame-subtitle">Cliquez sur les 2 points stratégiques pour basculer la tête</p>
+
+                <div class="lva-container">
+                    <!-- Image LVA Diagram pour précision -->
+                    <img src="{{ url_for('static', filename='img/mission_bilan_inconscient/lva_diagram.png') }}"
+                        class="lva-img">
+                    <!-- Adjusted Zones based on new diagram -->
+                    <div id="lva-zone-1" class="lva-zone" style="top: 15%; left: 30%;"></div> <!-- Front -->
+                    <div id="lva-zone-2" class="lva-zone" style="bottom: 25%; right: 25%;"></div> <!-- Menton -->
+                </div>
+                <p id="lva-feedback" style="height: 20px; color: #00ff88; font-weight: 600;"></p>
+            </div>
+        </div>
+
+        <!-- VES Minigame Overlay -->
+        <div id="ves-overlay" class="minigame-overlay hidden">
+            <div class="minigame-content">
+                <h2 class="minigame-title">Vérification de la Respiration</h2>
+                <p class="minigame-subtitle">Regardez le thorax. Appuyez à chaque soulèvement (inspiration).</p>
+
+                <!-- Visual Breathing Simulation -->
+                <div
+                    style="position: relative; width: 100%; max-width: 500px; height: 250px; border-radius: 12px; overflow: hidden; margin-bottom: 1.5rem; border: 2px solid rgba(255,255,255,0.1);">
+                    <img src="{{ url_for('static', filename='img/mission_bilan_inconscient/scene_4_ves.jpg') }}"
+                        style="width: 100%; height: 100%; object-fit: cover;">
+
+                    <!-- Animated Chest Zone -->
+                    <div id="chest-zone" style="
+                        position: absolute; 
+                        bottom: 0; 
+                        left: 0; 
+                        width: 100%; 
+                        height: 100%; 
+                        background: radial-gradient(circle at 60% 60%, rgba(255, 255, 255, 0.2) 0%, transparent 60%);
+                        opacity: 0;
+                        mix-blend-mode: overlay;
+                    "></div>
+                    <div id="breath-hint"
+                        style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ff88; font-weight: bold; opacity: 0; pointer-events: none;">
+                        INSPIRATION</div>
+                </div>
+
+                <div class="ves-interface">
+                    <div class="breath-indicator" id="timer-ring">
+                        <span class="timer-text" id="ves-timer">10</span>
+                    </div>
+                    <!-- Breath buttons etc... -->
+                    <div style="font-size: 2rem; font-weight: 800; color: var(--protec-orange);" id="breath-count">0
+                    </div>
+                    <button id="breath-btn" class="tap-btn">Noter</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- PLS Minigame Overlay -->
+        <div id="pls-overlay" class="minigame-overlay hidden">
+            <div class="minigame-content">
+                <h2 class="minigame-title">Mise en PLS</h2>
+                <p class="minigame-subtitle">Sélectionnez les étapes dans le bon ordre</p>
+
+                <div id="pls-grid" class="pls-grid">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- End Screen -->
+        <div id="end-screen" class="minigame-overlay hidden" style="background: rgba(0,0,0,0.95);">
+            <div class="minigame-content">
+                <div style="font-size: 4rem; margin-bottom: 1rem;">🏆</div>
+                <h1 class="minigame-title">Mission Accomplie !</h1>
+                <p class="minigame-subtitle">La victime a été prise en charge parfaitement.</p>
+
+                <div style="display: flex; gap: 3rem; margin: 2rem 0;">
+                    <div>
+                        <div style="font-size: 0.9rem; color: #aaa; text-transform: uppercase;">Score</div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--protec-orange);" id="end-score">0
+                        </div>
+                    </div>
+                    <div>
+                        <div style="font-size: 0.9rem; color: #aaa; text-transform: uppercase;">Temps</div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: white;" id="end-time">0:00</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem;">
+                    <button class="btn primary" onclick="location.reload()">Rejouer</button>
+                    <a href="{{ url_for('missions_page') }}" class="btn secondary">Quitter</a>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        window.MISSION_CONTEXT = {
+            levelId: {{ level.id }},
+        slug: { { level.slug | tojson } },
+        savedScore: { { progress.score if progress else 0 } }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+    <script src="{{ url_for('static', filename='js/mission_bilan_inconscient.js') }}?v=13"></script>
+</body>
+
+</html>

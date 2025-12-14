@@ -186,14 +186,8 @@ async function endRound(success) {
         });
         const data = await res.json();
 
-        // Update stats UI immediately
-        updateStats({
-            played_count: data.finished ? 300 : parseInt(statPlayed.textContent || "0") + 1,
-            won_count: data.won,
-            lost_count: data.lost,
-            total_words: 300,
-            score: data.score
-        });
+        // Update stats UI from server to be sure
+        await fetchStats();
 
         // Show result message
         const msg = qs('#result-message');
@@ -224,7 +218,12 @@ async function endRound(success) {
 
     } catch (err) {
         console.error("endRound error:", err);
-        // Fallback removed
+        // Force show next button so user isn't stuck
+        if (keyboard) keyboard.classList.add('hidden');
+        const nextAction = qs('#next-action');
+        if (nextAction) nextAction.classList.remove('hidden');
+        const nextBtn = qs('#next-word-btn');
+        if (nextBtn) nextBtn.onclick = () => fetchNextWord();
     }
 }
 

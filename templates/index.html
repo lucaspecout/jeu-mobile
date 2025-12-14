@@ -186,7 +186,23 @@
               </div>
             </div>
             <div class="trophy-grid">
-              {% for trophy in dashboard_stats.trophies %}
+              <h4
+                style="grid-column: 1/-1; margin-top: 1rem; color: rgba(255,255,255,0.5); font-size: 0.8rem; text-transform: uppercase;">
+                🏆 Individuel</h4>
+              {% for trophy in dashboard_stats.trophies if trophy.category == 'Individuel' %}
+              <div class="trophy {{ 'trophy--active' if trophy.earned else '' }}">
+                <div class="trophy__icon">{{ trophy.icon }}</div>
+                <div>
+                  <p class="trophy__title">{{ trophy.title }}</p>
+                  <p class="muted">{{ trophy.description }}</p>
+                </div>
+              </div>
+              {% endfor %}
+
+              <h4
+                style="grid-column: 1/-1; margin-top: 1rem; color: rgba(255,255,255,0.5); font-size: 0.8rem; text-transform: uppercase;">
+                👥 Collectif</h4>
+              {% for trophy in dashboard_stats.trophies if trophy.category == 'Collectif' %}
               <div class="trophy {{ 'trophy--active' if trophy.earned else '' }}">
                 <div class="trophy__icon">{{ trophy.icon }}</div>
                 <div>
@@ -474,7 +490,11 @@
       <span class="chip chip--ghost" id="profile-quiz-points">Questionnaires : 0</span>
       <span class="chip chip--ghost" id="profile-mission-points">Missions : 0</span>
       <span class="chip chip--ghost" id="profile-minigame-points">Mini-jeux : 0</span>
-      <div id="profile-badges" class="chip-row hidden" style="margin-top:8px;"></div>
+      <span class="chip chip--ghost" id="profile-minigame-points">Mini-jeux : 0</span>
+    </div>
+    <div style="margin-top: 1.5rem;">
+      <h3 class="eyebrow" style="margin-bottom: 0.5rem;">Récompenses</h3>
+      <div id="profile-badges" class="badges-grid"></div>
     </div>
     <form class="form" id="profile-form">
       <label>Pseudo
@@ -573,8 +593,8 @@
     window.AVATAR_EMOJIS = {{ avatar_emojis | tojson }};
   </script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-  <script src="{{ url_for('static', filename='js/main.js') }}"></script>
-  <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+  <script src="{{ url_for('static', filename='js/main.js') }}?v=2"></script>
+  <script src="{{ url_for('static', filename='js/admin.js') }}?v=2"></script>
 </body>
 
 </html>

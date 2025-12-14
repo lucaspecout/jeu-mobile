@@ -46,7 +46,7 @@ const SCENARIO = [
     {
         id: 'approach',
         phase: 'Phase 1 : BILAN',
-        img: 'protec_scene.jpg',
+        img: 'reagitpas.jpg',
         speaker: 'Action',
         text: 'Zone sûre. Vous approchez. La victime ne réagit pas aux ordres.',
         choices: [
@@ -68,7 +68,7 @@ const SCENARIO = [
     {
         id: 'cpr_loop',
         phase: 'Phase 3 : RCP',
-        img: 'protec_scene.jpg',
+        img: 'defib.png',
         speaker: 'Action',
         text: 'Vous commencez le massage. Le DAE arrive. Préparez-vous.',
         choices: [
@@ -81,10 +81,10 @@ const SCENARIO = [
         phase: 'Phase 4 : DAE',
         img: 'protec_scene.jpg',
         speaker: 'DAE',
-        text: 'Le défibrillateur est prêt. Il faut poser les électrodes.',
+        text: 'Le défibrillateur est là. Il faut agir.',
         choices: [
-            { label: 'Poser les électrodes', next: 'minigame_electrodes', correct: true },
-            { label: 'Masser par dessus les vêtements', next: 'bad_dae', correct: false }
+            { label: 'Allumer le défibrillateur', next: 'minigame_electrodes', correct: true },
+            { label: 'Poser les électrodes', next: 'bad_dae', correct: false }
         ]
     },
     {
@@ -125,7 +125,7 @@ const SCENARIO = [
         phase: 'SUCCÈS',
         img: 'protec_team.jpg',
         speaker: 'SAMU',
-        text: 'Le médecin du SAMU arrive. Vous avez maintenu une perfusion efficace. Beau travail d\'équipe VPSP !',
+        text: 'Le médecin du SAMU arrive. Vous avez maintenu un massage efficace. Beau travail d\'équipe VPSP de l\'Isère !',
         choices: [
             { label: 'Terminer la mission', next: 'victory_screen_trigger', correct: true },
             { label: 'Rester sur place', next: 'victory_screen_trigger', correct: true }
@@ -136,7 +136,7 @@ const SCENARIO = [
     {
         id: 'game_over_refusal',
         phase: 'ÉCHEC',
-        img: 'protec_intervention_start.jpg',
+        img: 'echec.jpg',
         speaker: 'Chef de Centre',
         text: 'Refus de départ injustifié. Une vie était en jeu.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
@@ -144,7 +144,7 @@ const SCENARIO = [
     {
         id: 'game_over_secu',
         phase: 'ÉCHEC',
-        img: 'protec_scene.jpg',
+        img: 'echec.jpg',
         speaker: 'Instructeur',
         text: 'Suraccident ! Toujours sécuriser avant d\'intervenir.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
@@ -152,7 +152,7 @@ const SCENARIO = [
     {
         id: 'game_over_pls',
         phase: 'ÉCHEC CRITIQUE',
-        img: 'protec_scene.jpg',
+        img: 'echec.jpg',
         speaker: 'Erreur Fatale',
         text: 'Ne JAMAIS mettre une victime en arrêt cardiaque en PLS. Le massage est impossible dans cette position.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
@@ -160,7 +160,7 @@ const SCENARIO = [
     {
         id: 'game_over_time',
         phase: 'TROP LENT',
-        img: 'protec_scene.jpg',
+        img: 'echec.jpg',
         speaker: 'Temps écoulé',
         text: 'Trop lent ! Chaque minute perdue réduit la survie de 10%.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
@@ -168,7 +168,7 @@ const SCENARIO = [
     {
         id: 'game_over_alert',
         phase: 'ÉCHEC',
-        img: 'protec_van.jpg',
+        img: 'echec.jpg',
         speaker: 'Isolement',
         text: 'Vous massez seul sans renforts ni DAE. Vous allez vous épuiser et la victime ne sera pas choquée.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
@@ -176,7 +176,7 @@ const SCENARIO = [
     {
         id: 'game_over_cpr_start',
         phase: 'ÉCHEC',
-        img: 'protec_scene.jpg',
+        img: 'echec.jpg',
         speaker: 'Protocole',
         text: 'On commence toujours par les compressions thoraciques (C-A-B) chez l\'adulte.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
@@ -184,7 +184,7 @@ const SCENARIO = [
     {
         id: 'game_over_dae_touch',
         phase: 'DANGER',
-        img: 'protec_van.jpg',
+        img: 'echec.jpg',
         speaker: 'DAE Perturbé',
         text: 'Vos mouvements faussent l\'analyse du DAE. Retard de traitement.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
@@ -192,18 +192,18 @@ const SCENARIO = [
     {
         id: 'game_over_wait',
         phase: 'ÉCHEC',
-        img: 'protec_van.jpg',
+        img: 'echec.jpg',
         speaker: 'Hésitation',
         text: 'Le choc n\'a pas été délivré. La fibrillation ventriculaire continue.',
         choices: [{ label: 'Recommencer', action: 'retry' }]
     },
     {
         id: 'bad_dae',
-        phase: 'ERREUR',
-        img: 'protec_van.jpg',
+        phase: 'ÉCHEC',
+        img: 'echec.jpg',
         speaker: 'Conseil',
         text: 'Toujours allumer le DAE en premier, il vous guidera vocalement.',
-        choices: [{ label: 'Corriger et continuer', next: 'dae_analysis', correct: true }]
+        choices: [{ label: 'Recommencer', action: 'retry' }]
     },
     {
         id: 'bad_check',
@@ -265,42 +265,52 @@ function renderStep(stepId) {
 
     // Render Choices
     choicesContainer.innerHTML = '';
-    step.choices.forEach(choice => {
+    // Shuffle choices to avoid pattern memory
+    const shuffledChoices = [...step.choices].sort(() => Math.random() - 0.5);
+
+    shuffledChoices.forEach(choice => {
         const btn = document.createElement('button');
         btn.className = 'choice-btn';
         btn.textContent = choice.label;
-        btn.onclick = () => handleChoice(choice, step);
+        btn.onclick = (e) => handleChoice(choice, step, e);
         choicesContainer.appendChild(btn);
     });
 }
 
-function handleChoice(choice, currentStep) {
+function handleChoice(choice, currentStep, event) {
     if (choice.action === 'retry') {
         location.reload();
         return;
     }
 
+    const btn = event ? event.target : null;
+
     if (choice.correct) {
+        if (btn) btn.classList.add('correct');
         currentState.score += 10;
         updateScore();
         // playSound('success');
     } else if (choice.correct === false) {
+        if (btn) btn.classList.add('wrong');
         currentState.score = Math.max(0, currentState.score - 5);
         updateScore();
         // playSound('error');
     }
 
-    if (choice.next === 'minigame_cpr') {
-        startCPRMinigame();
-    } else if (choice.next === 'minigame_electrodes') {
-        startElectrodeGame();
-    } else if (choice.next === 'minigame_shock') {
-        startShockGame();
-    } else if (choice.next === 'victory_screen_trigger') {
-        finishMission(true);
-    } else {
-        renderStep(choice.next);
-    }
+    // Delay transition to show feedback
+    setTimeout(() => {
+        if (choice.next === 'minigame_cpr') {
+            startCPRMinigame();
+        } else if (choice.next === 'minigame_electrodes') {
+            startElectrodeGame();
+        } else if (choice.next === 'minigame_shock') {
+            startShockGame();
+        } else if (choice.next === 'victory_screen_trigger') {
+            finishMission(true);
+        } else {
+            renderStep(choice.next);
+        }
+    }, 800);
 }
 
 function updateScore() {
@@ -466,7 +476,7 @@ async function finishMission(success) {
             await fetch(`/api/progress/${MISSION_CONTEXT.levelId}`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ status: 'terminee', score: currentState.score }),
+                body: JSON.stringify({ status: 'termine', score: currentState.score }),
             });
         } catch (e) { console.error(e); }
     }

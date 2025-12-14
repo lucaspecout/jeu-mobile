@@ -18,7 +18,8 @@
             <div class="mission-info">
                 <h1 class="mission-title">{{ level.name }}</h1>
                 <div class="mission-score-group">
-                    <div class="mission-score">Jeu: <span id="score-value">0</span></div>
+                    <div class="mission-score">Jeu: <span id="score-value">0</span> <span
+                            style="font-size: 0.8em; opacity: 0.8;">/ 3000</span></div>
                     <div class="mission-score total-score">Total: <span id="total-score-value">{{ total_score }}</span>
                     </div>
                 </div>
@@ -98,7 +99,7 @@
         </main>
     </div>
 
-    <script src="{{ url_for('static', filename='js/mission_pendu.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/mission_pendu.js') }}?v=2"></script>
 </body>
 
 </html>

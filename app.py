@@ -3,6 +3,7 @@ from datetime import datetime
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, inspect, text, JSON
+from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.security import generate_password_hash, check_password_hash
 from pendu_words import PENDU_WORDS
 
@@ -124,6 +125,14 @@ LEVEL_SEED = [
         "description": "Simulation interactive : Prise en charge d'un ACR adulte avec témoins.",
         "difficulty": "difficile",
         "icon": "pulse",
+        "category": "mission",
+    },
+    {
+        "slug": "bilan_inconscient",
+        "name": "Bilan de l'Inconscient (PSE 2024)",
+        "description": "Évaluation complète d'une victime inconsciente : LVA, VES, PLS selon le protocole PSE.",
+        "difficulty": "moyen",
+        "icon": "stethoscope",
         "category": "mission",
     },
     {
@@ -294,9 +303,15 @@ def bootstrap_levels():
 
 
 def serialize_progress(progress: Progress):
+    status = progress.status
+    # Robustness: If score > 0 for a mission, consider it termine
+    # This fixes legacy states where status might have been stuck in 'en_cours'
+    if progress.score and progress.score > 0 and progress.level.category == 'mission':
+        status = 'termine'
+
     return {
         "level": progress.level.slug,
-        "status": progress.status,
+        "status": status,
         "score": progress.score,
         "updated_at": progress.updated_at.isoformat() if progress.updated_at else None,
     }
@@ -455,24 +470,53 @@ def register_routes(app: Flask) -> None:
                 "score": total_score,
                 "badges": get_user_badges(total_score)
             })
+        
+        # Calculate current user's total score for trophies
+        user_total_score = 0
+        if user:
+            found = next((p for p in leaderboard if p["username"] == user.username), None)
+            if found:
+                user_total_score = found["score"]
+            else:
+                # If not in leaderboard (e.g. no activity yet), minimal calculation
+                user_total_score = user.bonus_points
+
         trophies = [
             {
+                "category": "Individuel",
                 "icon": "🏅",
                 "title": "Éclaireur",
                 "description": "3 missions activées",
                 "earned": missions_completed >= 3,
             },
             {
-                "icon": "🚑",
-                "title": "Chef d'équipe",
-                "description": "Plus de 5 secouristes inscrits",
-                "earned": total_rescuers >= 5,
+                "category": "Individuel",
+                "icon": "🔥",
+                "title": "Expert",
+                "description": "1000 points cumulés",
+                # Using current user score for personal display
+                "earned": user_total_score >= 1000, 
             },
             {
+                "category": "Individuel",
+                "icon": "🧠",
+                "title": "Savant",
+                "description": "Lexique 300 terminé",
+                "earned": False, # Logic to implement
+            },
+            {
+                "category": "Collectif",
+                "icon": "🚑",
+                "title": "Chef d'équipe",
+                "description": "Accès Admin/Formateur",
+                "earned": user.role in ["admin", "formateur"] if user else False,
+            },
+            {
+                "category": "Individuel",
                 "icon": "🎯",
                 "title": "Précision",
                 "description": "Score cumulé supérieur à 200",
-                "earned": sum((item[4] or 0) + (item[5] or 0) for item in leaderboard_rows) >= 200,
+                "earned": user_total_score >= 200,
             },
         ]
         dashboard_stats = {
@@ -546,6 +590,8 @@ def register_routes(app: Flask) -> None:
         if level.slug == 'arret_cardiaque':
             return render_template("mission_interactive.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
         
+        if level.slug == 'bilan_inconscient':
+            return render_template("mission_bilan_inconscient.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
         
         if level.slug == 'pendu_300':
             return render_template("mission_pendu.html", level=level, progress=progress, total_score=total_score)
@@ -644,7 +690,11 @@ def register_routes(app: Flask) -> None:
             progress = Progress(user=user, level=level)
             db.session.add(progress)
 
-        progress.status = status
+        # Only update status if the current one is not 'termine' OR if the new one IS 'termine'
+    # This preserves the 'termine' state even if the user relaunches (which sends 'en_cours')
+        if progress.status not in ['termine', 'terminee'] or status in ['termine', 'terminee']:
+            progress.status = status
+        
         progress.score = max(progress.score or 0, score)
         db.session.commit()
         return jsonify(serialize_progress(progress))
@@ -1103,7 +1153,14 @@ def register_routes(app: Flask) -> None:
         played = set(data.get("played_indices", []))
         
         if word_index in played:
-            return jsonify({"error": "Already played"}), 400
+            # Idempotency: If already played, just return current state
+            return jsonify({
+                "ok": True,
+                "score": progress.score,
+                "won": data.get("won", 0),
+                "lost": data.get("lost", 0),
+                "finished": len(played) >= 300
+            })
             
         data.setdefault("played_indices", []).append(word_index)
         
@@ -1114,6 +1171,7 @@ def register_routes(app: Flask) -> None:
             data["lost"] = data.get("lost", 0) + 1
             
         progress.data = data
+        flag_modified(progress, "data")
         
         if len(data["played_indices"]) >= 300:
             progress.status = "termine"
