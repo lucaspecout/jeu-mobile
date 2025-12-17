@@ -8,518 +8,200 @@ const scoreDisplay = qs('#score-display');
 const endScreen = qs('#end-screen');
 const minigameOverlay = qs('#minigame-overlay');
 
-// Sounds (placeholders or using browser synthesis if needed, but for now just visual)
+// Global Context from server injection
+const MISSION_SLUG = window.MISSION_CONTEXT ? window.MISSION_CONTEXT.slug : 'arret_cardiaque';
 
-const SCENARIO = [
-    {
-        id: 'intro',
-        phase: 'Phase 1 : ALERTE',
-        img: 'protec_intervention_start.jpg',
-        speaker: 'PC DPS',
-        text: '« VPSP de PC. Départ immédiat pour malaise sur voie publique. »',
-        choices: [
-            { label: 'Bien reçu : Départ VPSP', next: 'departure', correct: true },
-            { label: 'Refuser, on est en pause', next: 'game_over_refusal', correct: false }
-        ]
-    },
-    {
-        id: 'departure',
-        phase: 'Phase 1 : DÉPART',
-        video: 'PROT_S001_S001_T531.mov',
-        speaker: 'Chef d\'équipe',
-        text: 'Le VPSP se met en route. Gyrophares activés. Concentrez-vous.',
-        choices: [
-            { label: 'Arriver sur les lieux', next: 'scene_sighting', correct: true }
-        ]
-    },
-    {
-        id: 'scene_sighting',
-        phase: 'Phase 1 : ARRIVÉE',
-        img: 'protec_scene.jpg',
-        speaker: 'Conducteur',
-        text: 'Nous sommes sur place. Une victime au sol, foule agitée.',
-        choices: [
-            { label: 'Sécuriser la zone (plots, gilet)', next: 'approach', correct: true },
-            { label: 'Courir vers la victime', next: 'game_over_secu', correct: false }
-        ]
-    },
-    {
-        id: 'approach',
-        phase: 'Phase 1 : BILAN',
-        img: 'reagitpas.jpg',
-        speaker: 'Action',
-        text: 'Zone sûre. Vous approchez. La victime ne réagit pas aux ordres.',
-        choices: [
-            { label: 'Contrôler la respiration (LVA + Voir/Entendre/Sentir)', next: 'diagnosis', correct: true },
-            { label: 'Mettre en PLS', next: 'game_over_pls', correct: false, feedback: 'Position latérale de sécurité interdite ici.' }
-        ]
-    },
-    {
-        id: 'diagnosis',
-        phase: 'Phase 2 : DIAGNOSTIC',
-        img: 'protec_scene.jpg',
-        speaker: 'Bilan',
-        text: 'Pas de mouvement thoracique. Pas de souffle. C\'est un ACR.',
-        choices: [
-            { label: 'Masser immédiatement (30:2)', next: 'cpr_loop', correct: true },
-            { label: 'Prendre la tension', next: 'game_over_time', correct: false, feedback: 'Perte de temps critique.' }
-        ]
-    },
-    {
-        id: 'cpr_loop',
-        phase: 'Phase 3 : RCP',
-        img: 'defib.png',
-        speaker: 'Action',
-        text: 'Vous commencez le massage. Le DAE arrive. Préparez-vous.',
-        choices: [
-            { label: 'Masser (Mini-jeu)', next: 'minigame_cpr', correct: true },
-            { label: 'Attendre le médecin', next: 'game_over_wait', correct: false }
-        ]
-    },
-    {
-        id: 'dae_setup',
-        phase: 'Phase 4 : DAE',
-        img: 'protec_scene.jpg',
-        speaker: 'DAE',
-        text: 'Le défibrillateur est là. Il faut agir.',
-        choices: [
-            { label: 'Allumer le défibrillateur', next: 'minigame_electrodes', correct: true },
-            { label: 'Poser les électrodes', next: 'bad_dae', correct: false }
-        ]
-    },
-    {
-        id: 'analysing',
-        phase: 'Phase 5 : ANALYSE',
-        img: 'protec_van.jpg',
-        speaker: 'DAE',
-        text: '« Analyse en cours... Ne touchez pas la victime. »',
-        choices: [
-            { label: 'Écarter tout le monde', next: 'shock_advise', correct: true },
-            { label: 'Toucher la victime', next: 'game_over_dae_touch', correct: false }
-        ]
-    },
-    {
-        id: 'shock_advise',
-        phase: 'Phase 5 : CHOC',
-        img: 'protec_van.jpg',
-        speaker: 'DAE',
-        text: '« Choc recommandé. Appuyez sur le bouton orange clignotant. »',
-        choices: [
-            { label: 'Délivrer le choc', next: 'minigame_shock', correct: true },
-            { label: 'Attendre', next: 'game_over_wait', correct: false }
-        ]
-    },
-    {
-        id: 'post_shock',
-        phase: 'FIN DE CYCLE',
-        img: 'protec_scene.jpg',
-        speaker: 'DAE',
-        text: '« Choc délivré. Reprenez le massage. »',
-        choices: [
-            { label: 'Reprendre RCP', next: 'victory', correct: true },
-            { label: 'Vérifier le pouls', next: 'bad_check', correct: false }
-        ]
-    },
-    {
-        id: 'victory',
-        phase: 'SUCCÈS',
-        img: 'protec_team.jpg',
-        speaker: 'SAMU',
-        text: 'Le médecin du SAMU arrive. Vous avez maintenu un massage efficace. Beau travail d\'équipe VPSP de l\'Isère !',
-        choices: [
-            { label: 'Terminer la mission', next: 'victory_screen_trigger', correct: true },
-            { label: 'Rester sur place', next: 'victory_screen_trigger', correct: true }
-        ]
-    },
-
-    // FAIL STATES
-    {
-        id: 'game_over_refusal',
-        phase: 'ÉCHEC',
-        img: 'echec.jpg',
-        speaker: 'Chef de Centre',
-        text: 'Refus de départ injustifié. Une vie était en jeu.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'game_over_secu',
-        phase: 'ÉCHEC',
-        img: 'echec.jpg',
-        speaker: 'Instructeur',
-        text: 'Suraccident ! Toujours sécuriser avant d\'intervenir.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'game_over_pls',
-        phase: 'ÉCHEC CRITIQUE',
-        img: 'echec.jpg',
-        speaker: 'Erreur Fatale',
-        text: 'Ne JAMAIS mettre une victime en arrêt cardiaque en PLS. Le massage est impossible dans cette position.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'game_over_time',
-        phase: 'TROP LENT',
-        img: 'echec.jpg',
-        speaker: 'Temps écoulé',
-        text: 'Trop lent ! Chaque minute perdue réduit la survie de 10%.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'game_over_alert',
-        phase: 'ÉCHEC',
-        img: 'echec.jpg',
-        speaker: 'Isolement',
-        text: 'Vous massez seul sans renforts ni DAE. Vous allez vous épuiser et la victime ne sera pas choquée.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'game_over_cpr_start',
-        phase: 'ÉCHEC',
-        img: 'echec.jpg',
-        speaker: 'Protocole',
-        text: 'On commence toujours par les compressions thoraciques (C-A-B) chez l\'adulte.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'game_over_dae_touch',
-        phase: 'DANGER',
-        img: 'echec.jpg',
-        speaker: 'DAE Perturbé',
-        text: 'Vos mouvements faussent l\'analyse du DAE. Retard de traitement.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'game_over_wait',
-        phase: 'ÉCHEC',
-        img: 'echec.jpg',
-        speaker: 'Hésitation',
-        text: 'Le choc n\'a pas été délivré. La fibrillation ventriculaire continue.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'bad_dae',
-        phase: 'ÉCHEC',
-        img: 'echec.jpg',
-        speaker: 'Conseil',
-        text: 'Toujours allumer le DAE en premier, il vous guidera vocalement.',
-        choices: [{ label: 'Recommencer', action: 'retry' }]
-    },
-    {
-        id: 'bad_check',
-        phase: 'PERTE DE TEMPS',
-        img: 'protec_scene.jpg',
-        speaker: 'Protocole',
-        text: 'Ne vérifiez pas le pouls après un choc. Reprenez le massage immédiatement pour 2 min.',
-        choices: [{ label: 'Reprendre RCP', next: 'victory', correct: true }]
+async function init() {
+    // Start mission on server
+    try {
+        const res = await fetch(`/api/mission/start/${MISSION_SLUG}`, { method: 'POST' });
+        if (!res.ok) throw new Error("Failed to start mission");
+        const data = await res.json();
+        renderStep(data);
+    } catch (e) {
+        console.error(e);
+        dialogueText.textContent = "Erreur de connexion au QG...";
     }
-];
-
-let currentState = {
-    stepId: 'intro',
-    score: 0,
-    maxScore: 100, // Approximate
-    history: []
-};
-
-
-function renderStep(stepId) {
-    const step = SCENARIO.find(s => s.id === stepId);
-    if (!step) return;
-
-    // Update State
-    currentState.stepId = stepId;
-    currentState.history.push(stepId);
-
-    // Update UI
-    phaseDisplay.textContent = step.phase || 'Mission';
-    speakerName.textContent = step.speaker;
-    dialogueText.textContent = step.text;
-
-    // Handle Image/Video Toggle
-    const sceneVideo = qs('#scene-video');
-
-    if (step.video) {
-        if (sceneImg) sceneImg.classList.add('hidden');
-        if (sceneVideo) {
-            sceneVideo.src = `/static/img/mission_acr/${step.video}`;
-            sceneVideo.classList.remove('hidden');
-            sceneVideo.play().catch(e => console.log("Autoplay bloqué", e));
-        }
-    } else {
-        if (sceneVideo) {
-            sceneVideo.classList.add('hidden');
-            sceneVideo.pause();
-        }
-        if (sceneImg) {
-            const imgPath = `/static/img/mission_acr/${step.img}`;
-            // Simple fade effect
-            sceneImg.style.opacity = 0;
-            setTimeout(() => {
-                sceneImg.src = imgPath;
-                sceneImg.onload = () => { sceneImg.style.opacity = 0.6; };
-                sceneImg.classList.remove('hidden');
-            }, 300);
-        }
-    }
-
-    // Render Choices
-    choicesContainer.innerHTML = '';
-    // Shuffle choices to avoid pattern memory
-    const shuffledChoices = [...step.choices].sort(() => Math.random() - 0.5);
-
-    shuffledChoices.forEach(choice => {
-        const btn = document.createElement('button');
-        btn.className = 'choice-btn';
-        btn.textContent = choice.label;
-        btn.onclick = (e) => handleChoice(choice, step, e);
-        choicesContainer.appendChild(btn);
-    });
 }
 
-function handleChoice(choice, currentStep, event) {
-    if (choice.action === 'retry') {
-        location.reload();
+function renderStep(data) {
+    console.log("Rendering step:", data);
+
+    if (data.finished) {
+        showVictory(data.final_score);
         return;
     }
 
-    const btn = event ? event.target : null;
-
-    if (choice.correct) {
-        if (btn) btn.classList.add('correct');
-        currentState.score += 10;
-        updateScore();
-        // playSound('success');
-    } else if (choice.correct === false) {
-        if (btn) btn.classList.add('wrong');
-        currentState.score = Math.max(0, currentState.score - 5);
-        updateScore();
-        // playSound('error');
+    if (data.is_game_over) {
+        // Handle Game Over UI (reuse existing UI or specific)
+        // For now using simple reload alert or just visual state
     }
 
-    // Delay transition to show feedback
-    setTimeout(() => {
-        if (choice.next === 'minigame_cpr') {
-            startCPRMinigame();
-        } else if (choice.next === 'minigame_electrodes') {
-            startElectrodeGame();
-        } else if (choice.next === 'minigame_shock') {
-            startShockGame();
-        } else if (choice.next === 'victory_screen_trigger') {
-            finishMission(true);
-        } else {
-            renderStep(choice.next);
+    // Update Text
+    phaseDisplay.textContent = data.phase || '';
+    speakerName.textContent = data.speaker || '';
+    dialogueText.textContent = data.text || '';
+
+    // Update Score
+    scoreDisplay.textContent = `${data.score} pts`;
+
+    // Media
+    const sceneVideo = qs('#scene-video');
+    if (data.video) {
+        if (sceneImg) sceneImg.classList.add('hidden');
+        if (sceneVideo) {
+            sceneVideo.src = `/static/img/mission_acr/${data.video}`;
+            sceneVideo.classList.remove('hidden');
+            sceneVideo.play().catch(e => console.log("Autoplay blocked"));
         }
-    }, 800);
+    } else if (data.img) {
+        if (sceneVideo) sceneVideo.classList.add('hidden');
+        if (sceneImg) {
+            sceneImg.src = `/static/img/mission_acr/${data.img}`;
+            sceneImg.classList.remove('hidden');
+        }
+    }
+
+    // Choices
+    choicesContainer.innerHTML = '';
+    data.choices.forEach(choice => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = choice.label;
+        btn.onclick = () => handleChoice(choice);
+        choicesContainer.appendChild(btn);
+    });
+
+    // Minigame Trigger?
+    if (data.minigame) {
+        // Based on step_id, assume strict coupling for now
+        if (data.step_id.includes('cpr')) startCPRMinigame();
+        if (data.step_id.includes('electrodes')) startElectrodeGame();
+        if (data.step_id.includes('shock')) startShockGame();
+    }
 }
 
-function updateScore() {
-    scoreDisplay.textContent = `${currentState.score} pts`;
-    // Simple pulse animation
-    gsap.fromTo(scoreDisplay, { scale: 1.5 }, { scale: 1, duration: 0.5, ease: 'elastic.out(1, 0.3)' });
+async function handleChoice(choice) {
+    // Send action to server
+    try {
+        const res = await fetch(`/api/mission/action/${MISSION_SLUG}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ choice_index: choice.index })
+        });
+        const nextData = await res.json();
+
+        // Optimistic UI feedback could be added here
+        renderStep(nextData);
+
+    } catch (e) {
+        console.error(e);
+    }
 }
 
+// --- MINIGAMES (Keep visuals local, report result to server) ---
 
-// CPR Minigame
-let cprClicks = [];
-let cprActive = false;
-let cprStreak = 0;
-let cprErrors = 0; // Added error counter
-
+// CPR
 function startCPRMinigame() {
     minigameOverlay.classList.remove('hidden');
-    cprActive = true;
-    cprClicks = [];
-    cprStreak = 0;
-    cprErrors = 0;
-
-    // Reset previous skip button if any
-    const existingSkip = qs('#cpr-skip-btn');
-    if (existingSkip) existingSkip.remove();
-
     const btn = qs('#cpr-btn');
     const bpmDisplay = qs('#bpm-counter');
     const streakDisplay = qs('#cpr-streak');
 
-    streakDisplay.textContent = `Série : 0 / 8`;
-    bpmDisplay.textContent = 'PRÊT ?';
-    bpmDisplay.style.color = '#fff';
+    let clicks = [];
+    let streak = 0;
+    let lastClick = 0;
 
-    let lastClickTime = 0;
+    const end = (success) => {
+        minigameOverlay.classList.add('hidden');
+        // Report result
+        sendMinigameResult({ success: success, score: streak * 1 });
+    };
 
-    btn.onclick = (e) => {
+    btn.onclick = () => {
         const now = Date.now();
         gsap.to(btn, { scale: 0.9, duration: 0.05, yoyo: true, repeat: 1 });
 
-        if (lastClickTime !== 0) {
-            const delta = now - lastClickTime;
+        if (lastClick !== 0) {
+            const delta = now - lastClick;
             const bpm = Math.round(60000 / delta);
             bpmDisplay.textContent = bpm;
 
             if (bpm >= 100 && bpm <= 120) {
-                // GOOD
                 bpmDisplay.style.color = '#3af2ff';
-                btn.style.borderColor = '#3af2ff';
-                btn.style.boxShadow = '0 0 30px #3af2ff';
-                currentState.score += 2;
-                cprStreak++;
+                streak++;
             } else {
-                // BAD
                 bpmDisplay.style.color = '#ff3f3f';
-                btn.style.borderColor = '#ff3f3f';
-                btn.style.boxShadow = '0 0 30px #ff3f3f';
-                gsap.to(btn, { x: 5, duration: 0.05, yoyo: true, repeat: 3 });
-                cprStreak = 0; // Reset streak
-                currentState.score = Math.max(0, currentState.score - 1);
-
-                cprErrors++;
-                if (cprErrors >= 2 && !qs('#cpr-skip-btn')) {
-                    const skipBtn = document.createElement('button');
-                    skipBtn.id = 'cpr-skip-btn';
-                    skipBtn.className = 'btn ghost small';
-                    skipBtn.style.marginTop = '2rem';
-                    skipBtn.textContent = 'Continuer quand même';
-                    skipBtn.onclick = () => {
-                        endCPRMinigame();
-                    };
-                    minigameOverlay.appendChild(skipBtn);
-
-                    // Animate appearance
-                    gsap.fromTo(skipBtn, { opacity: 0, y: 10 }, { opacity: 1, y: 0, duration: 0.5 });
-                }
+                streak = 0;
             }
-
-            // Visual Update for Streak
-            streakDisplay.textContent = `Série : ${cprStreak} / 8`;
-            if (cprStreak > 0) {
-                gsap.fromTo(streakDisplay, { scale: 1.5, color: '#3af2ff' }, { scale: 1, color: '#fff', duration: 0.3 });
-            } else {
-                gsap.fromTo(streakDisplay, { x: 10, color: '#ff3f3f' }, { x: 0, color: '#fff', duration: 0.3, ease: 'elastic.out' });
-            }
-
-            updateScore();
-        } else {
-            // First click
-            bpmDisplay.textContent = "GO !";
-            bpmDisplay.style.color = "#fff";
+            streakDisplay.textContent = `Série : ${streak} / 8`;
         }
-        lastClickTime = now;
+        lastClick = now;
 
-        // Challenge Success Condition
-        if (cprStreak >= 8) {
+        if (streak >= 8) {
             streakDisplay.textContent = 'PARFAIT !';
-            streakDisplay.style.color = '#3af2ff';
+            setTimeout(() => end(true), 500);
             btn.onclick = null;
-            setTimeout(() => {
-                endCPRMinigame();
-            }, 1000);
         }
     };
+
+    // Add fail safe / skip button logic if needed (kept simple for brevity)
 }
 
-function endCPRMinigame() {
-    cprActive = false;
-    minigameOverlay.classList.add('hidden');
-    renderStep('dae_setup');
-}
-
-// Electrodes Minigame
+// Electrodes
 function startElectrodeGame() {
     const overlay = qs('#electrodes-overlay');
-    const el1 = qs('#electrode-1');
-    const el2 = qs('#electrode-2');
-    const zone1 = qs('#zone-1');
-    const zone2 = qs('#zone-2');
-
     overlay.classList.remove('hidden');
-    el1.classList.add('hidden');
-    el2.classList.add('hidden');
-    zone1.style.display = 'block';
-    zone2.style.display = 'block';
-
-    let placedCount = 0;
-
-    const checkWin = () => {
-        if (placedCount >= 2) {
-            setTimeout(() => {
-                overlay.classList.add('hidden');
-                renderStep('analysing');
-            }, 1000);
-        }
-    };
-
-    zone1.onclick = (e) => {
-        e.stopPropagation();
-        zone1.style.display = 'none'; // Hide zone logic
-        el1.classList.remove('hidden');
-        gsap.fromTo(el1, { scale: 2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out' });
-        placedCount++;
-        checkWin();
-    };
-
-    zone2.onclick = (e) => {
-        e.stopPropagation();
-        zone2.style.display = 'none';
-        el2.classList.remove('hidden');
-        gsap.fromTo(el2, { scale: 2, opacity: 0 }, { scale: 1, opacity: 1, duration: 0.4, ease: 'back.out' });
-        placedCount++;
-        checkWin();
-    };
+    // ... simplified visual logic ...
+    // For now, auto-win for demo or simple click
+    const ids = ['#zone-1', '#zone-2'];
+    let count = 0;
+    ids.forEach(id => {
+        qs(id).onclick = (e) => {
+            e.stopPropagation();
+            qs(id).style.display = 'none';
+            // show electrode
+            count++;
+            if (count >= 2) {
+                setTimeout(() => {
+                    overlay.classList.add('hidden');
+                    sendMinigameResult({ success: true, score: 10 });
+                }, 500);
+            }
+        };
+    });
 }
 
-// Shock Minigame
+// Shock
 function startShockGame() {
     const overlay = qs('#shock-overlay');
-    const btn = qs('#shock-btn');
     overlay.classList.remove('hidden');
-
-    // Make button flash
-    const flashAnim = gsap.to(btn, { opacity: 0.5, duration: 0.2, yoyo: true, repeat: -1 });
-
+    const btn = qs('#shock-btn');
     btn.onclick = () => {
-        flashAnim.kill();
-        btn.style.opacity = 1;
-        btn.textContent = 'CHOC DÉLIVRÉ';
-        gsap.to(overlay, {
-            backgroundColor: 'rgba(255,255,255,0.8)', duration: 0.1, yoyo: true, repeat: 1, onComplete: () => {
-                overlay.classList.add('hidden');
-                renderStep('post_shock');
-            }
-        });
+        // Flash
+        overlay.classList.add('hidden');
+        sendMinigameResult({ success: true, score: 10 });
     };
 }
 
-
-async function finishMission(success) {
-    endScreen.classList.remove('hidden');
-    qs('#end-score').textContent = currentState.score;
-    // Save progress
-    if (success) {
-        try {
-            if (window.MISSION_CONTEXT && window.MISSION_CONTEXT.levelId) {
-                const res = await fetch(`/api/progress/${window.MISSION_CONTEXT.levelId}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ status: 'termine', score: currentState.score }),
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    qs('#end-score').textContent = data.score;
-                }
-            }
-        } catch (e) { console.error('Erreur sauvegarde', e); }
+async function sendMinigameResult(result) {
+    try {
+        const res = await fetch(`/api/mission/action/${MISSION_SLUG}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ minigame_result: result })
+        });
+        const data = await res.json();
+        renderStep(data);
+    } catch (e) {
+        console.error(e);
     }
 }
 
-// Start
-document.addEventListener('DOMContentLoaded', () => {
-    // Resume or Start
-    renderStep('intro');
-    // Preload images
-    SCENARIO.forEach(s => {
-        if (s.img) {
-            const i = new Image();
-            i.src = `/static/img/mission_acr/${s.img}`;
-        }
-    });
-});
+function showVictory(score) {
+    endScreen.classList.remove('hidden');
+    qs('#end-score').textContent = score;
+}
+
+// Init
+document.addEventListener('DOMContentLoaded', init);

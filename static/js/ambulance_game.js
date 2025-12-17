@@ -72,6 +72,11 @@ function init() {
 
     updateCoinsDisplay();
     setupControls();
+
+    // Start session on server for anti-cheat validation
+    fetch('/api/ambulance/start', { method: 'POST' })
+        .catch(e => console.error("Failed to start game session", e));
+
     gameState.lastSpawnTime = Date.now();
     gameLoop();
 }
@@ -444,6 +449,13 @@ async function endGame(won) {
         if (res.ok) {
             const data = await res.json();
             document.getElementById('best-score').textContent = data.best_score;
+        } else {
+            const err = await res.json();
+            if (err.reload) {
+                alert("Erreur de validation du score. La page va être rechargée.");
+                location.reload();
+                return;
+            }
         }
     } catch (e) {
         console.error('Failed to save score:', e);

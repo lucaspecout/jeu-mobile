@@ -1,12 +1,4 @@
-
 const qs = (sel) => document.querySelector(sel);
-
-// Logic State
-let currentWord = "";
-let currentWordIndex = -1;
-let guessedLetters = new Set();
-let wrongCount = 0;
-const MAX_ERRORS = 6; // Emoji steps: 0=Happy -> 6=Skull
 
 // UI Elements
 const scoreVal = qs('#score-value');
@@ -20,8 +12,8 @@ const wordDisplay = qs('#word-display');
 const keyboard = qs('#keyboard');
 const activeGame = qs('#active-game');
 const endScreen = qs('#end-screen');
+const hangmanContainer = qs('.hangman-visual');
 
-// Logic State
 let baseScore = 0;
 if (gameData) {
     baseScore = parseInt(gameData.dataset.baseScore || "0");
@@ -29,10 +21,18 @@ if (gameData) {
 
 // Init
 async function init() {
-    console.log("Pendu Init");
-    await fetchStats();
-    fetchNextWord();
-    renderKeyboard();
+    console.log("Pendu Secure Init v3");
+    // Force visible immediately
+    if (activeGame) activeGame.classList.remove('hidden');
+
+    try {
+        await fetchStats();
+        // If fetchStats worked, try game
+        fetchNextWord();
+    } catch (e) {
+        console.error("Init failed", e);
+        alert("Erreur initialisation: " + e.message);
+    }
 }
 
 async function fetchStats() {
@@ -41,9 +41,6 @@ async function fetchStats() {
         if (!res.ok) throw new Error("Failed to fetch state");
         const data = await res.json();
         updateStats(data);
-        if (data.is_finished) {
-            showEndScreen(data);
-        }
     } catch (err) {
         console.error("fetchStats error:", err);
     }
@@ -66,175 +63,174 @@ function updateStats(data) {
 }
 
 async function fetchNextWord() {
-    console.log("Fetching next word...");
+    console.log("Fetching new game...");
+    // alert("DEBUG: Fetching word..."); // Uncomment if needed, but let's try console first
     resetBoard();
-
-    // Explicitly sync stats when starting new word (after 3s delay)
-    // This ensures header info is up to date
-    await fetchStats();
+    toggleLoading(true);
 
     try {
         const res = await fetch('/api/pendu/word');
-        if (!res.ok) throw new Error("Failed to fetch word");
+        if (!res.ok) {
+            const txt = await res.text();
+            throw new Error(`Server Error: ${res.status} - ${txt}`);
+        }
         const data = await res.json();
+        console.log("RX DATA:", data);
 
-        if (data.finished) {
-            fetchStats(); // Trigger end screen via stats
-            return;
+        if (!data || !data.masked_word) {
+            throw new Error("Invalid Data Received: " + JSON.stringify(data));
         }
 
-        currentWord = (data.word || "").toUpperCase();
-        currentWordIndex = data.index;
-        console.log("New word loaded:", currentWord);
-        renderWordSlots();
+        // Render initial state
+        renderGame(data);
+        toggleLoading(false);
+
     } catch (err) {
         console.error("fetchNextWord error:", err);
+        if (wordDisplay) {
+            wordDisplay.innerHTML = `<span class="danger-text">Erreur connexion. <button onclick="location.reload()">↺</button></span>`;
+        }
     }
 }
 
 function resetBoard() {
-    guessedLetters.clear();
-    wrongCount = 0;
-    updateHangmanVisual();
+    // Reset visual to start state
+    updateHangmanVisual(0);
+    if (wordDisplay) wordDisplay.innerHTML = 'Chargement...';
 
-    // Hide Next Action, Show Keyboard
+    // Ensure keyboard is cleared AND visible (it gets hidden at end game)
+    if (keyboard) {
+        keyboard.innerHTML = '';
+        keyboard.classList.remove('hidden');
+    }
+
     const nextAction = qs('#next-action');
     if (nextAction) nextAction.classList.add('hidden');
 
-    if (keyboard) keyboard.classList.remove('hidden');
-    renderKeyboard();
+    if (activeGame) activeGame.classList.remove('hidden');
+    if (endScreen) endScreen.classList.add('hidden');
 }
 
-function renderWordSlots() {
-    if (!wordDisplay) return;
-    wordDisplay.innerHTML = '';
-    for (let char of currentWord) {
-        const slot = document.createElement('span');
-        slot.className = 'letter-slot';
-        slot.textContent = guessedLetters.has(char) ? char : '_';
-        wordDisplay.appendChild(slot);
+function renderGame(gameState) {
+    // Word
+    if (wordDisplay) {
+        wordDisplay.innerHTML = '';
+        const chars = gameState.masked_word.split('');
+        chars.forEach(char => {
+            const slot = document.createElement('span');
+            slot.className = 'letter-slot';
+            slot.textContent = char;
+            wordDisplay.appendChild(slot);
+        });
+    }
+
+    // Keyboard
+    renderKeyboard(gameState.guessed_letters, gameState.masked_word);
+
+    // Visuals
+    updateHangmanVisual(gameState.wrong_count);
+
+    // End State
+    if (gameState.finished) {
+        handleEndGame(gameState);
     }
 }
 
-function renderKeyboard() {
+function renderKeyboard(guessedList, maskedWord) {
     if (!keyboard) return;
+    const guessedSet = new Set(guessedList);
+
+    // Normalize mask to check keys
+    const revealedChars = new Set(maskedWord.split(''));
+
     keyboard.innerHTML = '';
     const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (let char of alphabet) {
         const btn = document.createElement('button');
         btn.className = 'key-btn';
         btn.textContent = char;
-        btn.onclick = () => handleGuess(char, btn);
+
+        if (guessedSet.has(char)) {
+            btn.disabled = true;
+            btn.classList.add('disabled');
+
+            // Check if correct or wrong based on presence in revealed word
+            if (revealedChars.has(char)) {
+                btn.classList.add('correct'); // CSS should make this GREEN
+            } else {
+                btn.classList.add('wrong');   // CSS should make this RED
+            }
+        } else {
+            btn.onclick = () => sendGuess(char, btn);
+        }
         keyboard.appendChild(btn);
     }
 }
 
-function handleGuess(letter, btn) {
-    if (guessedLetters.has(letter) || wrongCount >= MAX_ERRORS) return;
-
-    guessedLetters.add(letter);
+async function sendGuess(letter, btn) {
+    // Optimistic UI
     btn.disabled = true;
-
-    if (currentWord.includes(letter)) {
-        btn.classList.add('correct');
-        checkWin();
-    } else {
-        btn.classList.add('wrong');
-        wrongCount++;
-        updateHangmanVisual();
-        checkLoss();
-    }
-    renderWordSlots();
-}
-
-function updateHangmanVisual() {
-    const emojis = ["😀", "🙂", "😐", "😕", "😟", "😨", "💀"];
-    // Clamp index between 0 and 6
-    const index = Math.min(wrongCount, 6);
-    const container = qs('.hangman-visual');
-    if (container) {
-        container.innerHTML = `<div class="hangman-emoji">${emojis[index]}</div>`;
-    }
-}
-
-function checkWin() {
-    if (!currentWord) return;
-    // Check if all letters revealed
-    const isWin = [...currentWord].every(c => guessedLetters.has(c));
-    if (isWin) {
-        endRound(true);
-    }
-}
-
-function checkLoss() {
-    if (wrongCount >= MAX_ERRORS) {
-        // Reveal word
-        [...currentWord].forEach(c => guessedLetters.add(c));
-        renderWordSlots();
-        endRound(false); // Success = false
-    }
-}
-
-async function endRound(success) {
-    console.log("End round. Success:", success);
+    btn.classList.add('disabled');
 
     try {
-        const res = await fetch('/api/pendu/result', {
+        const res = await fetch('/api/pendu/guess', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ index: currentWordIndex, success: success })
+            body: JSON.stringify({ letter: letter })
         });
-        const data = await res.json();
 
-        // Update stats UI from server to be sure
-        await fetchStats();
-
-        // Show result message
-        const msg = qs('#result-message');
-        if (msg) {
-            msg.textContent = success ? "BRAVO ! +10 pts" : `DOMMAGE ! C'était "${currentWord}"`;
-            msg.className = success ? "success-text" : "danger-text";
+        if (!res.ok) {
+            throw new Error(`Err server`);
         }
 
-        // Hide keyboard, show next button (as backup)
-        if (keyboard) keyboard.classList.add('hidden');
-        const nextAction = qs('#next-action');
-        if (nextAction) nextAction.classList.remove('hidden');
+        const newState = await res.json();
+        renderGame(newState);
 
-        const nextBtn = qs('#next-word-btn');
-        if (nextBtn) nextBtn.onclick = () => fetchNextWord();
-
-        // AUTO ADVANCE REMOVED - User must click Next
-        // if (!data.finished) {
-        //     console.log("Auto-advancing in 3s...");
-        //     setTimeout(() => {
-        //         fetchNextWord();
-        //     }, 3000);
-        // } else {
-        if (data.finished) {
-            showEndScreen(data);
-        }
-        // }
-
-    } catch (err) {
-        console.error("endRound error:", err);
-        // Force show next button so user isn't stuck
-        if (keyboard) keyboard.classList.add('hidden');
-        const nextAction = qs('#next-action');
-        if (nextAction) nextAction.classList.remove('hidden');
-        const nextBtn = qs('#next-word-btn');
-        if (nextBtn) nextBtn.onclick = () => fetchNextWord();
+    } catch (e) {
+        console.error("Guess Error:", e);
+        // Silent fail or small UI indicator preferred over alert
+        btn.disabled = false;
+        btn.classList.remove('disabled');
     }
 }
 
-function showEndScreen(data) {
-    if (activeGame) activeGame.classList.add('hidden');
-    if (endScreen) endScreen.classList.remove('hidden');
-    const finalScore = qs('#final-score');
-    const finalWon = qs('#final-won');
-    if (finalScore) finalScore.textContent = data.score || scoreVal.textContent;
-    if (finalWon) finalWon.textContent = data.won_count || statWon.textContent;
+function updateHangmanVisual(count) {
+    const emojis = ["😀", "🙂", "😐", "😕", "😟", "😨", "💀"];
+    const index = Math.min(count, 6);
+    if (hangmanContainer) {
+        hangmanContainer.innerHTML = `<div class="hangman-emoji">${emojis[index]}</div>`;
+    }
 }
 
-// Start
+function handleEndGame(finalState) {
+    // Show End Screen / Next Button
+    if (keyboard) keyboard.classList.add('hidden');
+
+    const msg = qs('#result-message');
+    if (msg) {
+        if (finalState.success) {
+            msg.textContent = `BRAVO ! +${finalState.score_gained} pts`;
+            msg.className = "success-text";
+        } else {
+            msg.textContent = `PERDU ! C'était "${finalState.masked_word}"`; // Server sends full word on loss
+            msg.className = "danger-text";
+        }
+    }
+
+    const nextAction = qs('#next-action');
+    if (nextAction) {
+        nextAction.classList.remove('hidden');
+        const nextBtn = qs('#next-word-btn');
+        if (nextBtn) nextBtn.onclick = () => fetchNextWord();
+    }
+
+    // Update stats one last time
+    fetchStats();
+}
+
+function toggleLoading(isLoading) {
+    // Simple spinner or opacity
+    if (activeGame) activeGame.style.opacity = isLoading ? 0.5 : 1;
+}
+
 init();

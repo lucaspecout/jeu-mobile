@@ -5,7 +5,7 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, inspect, text, JSON
 from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.security import generate_password_hash, check_password_hash
-from pendu_words import PENDU_WORDS
+from game_engine import PenduGame, MissionEngine
 
 
 db = SQLAlchemy()
@@ -765,6 +765,15 @@ def register_routes(app: Flask) -> None:
         session.pop("user_id", None)
         return jsonify({"ok": True})
 
+    @app.route("/api/ambulance/start", methods=["POST"])
+    def api_ambulance_start():
+        user = current_user()
+        if not user:
+            return jsonify({"error": "Auth required"}), 401
+        # Store start time for validation
+        session['ambulance_start_time'] = datetime.utcnow().timestamp()
+        return jsonify({"ok": True})
+
     @app.route("/api/ambulance/score", methods=["POST"])
     def api_ambulance_score():
         user = current_user()
@@ -772,16 +781,49 @@ def register_routes(app: Flask) -> None:
             return jsonify({"error": "Authentification requise"}), 401
         
         payload = request.get_json()
-        score = payload.get("score", 0)
+        score = int(payload.get("score", 0))
         
-        level = Level.query.filter_by(slug="ambulance_chase").first_or_404()
+        # Validation: Check if score is physically possible in the time elapsed
+        start_time = session.get('ambulance_start_time')
+        
+        # DEBUG LOGGING
+        elapsed = 0
+        if start_time:
+             elapsed = datetime.utcnow().timestamp() - start_time
+             
+        print(f"DEBUG: AmbScore User={user.username} Score={score} Elapsed={elapsed} Start={start_time}")
+
+        # Relaxed Validation Logic
+        # Allow missing start_time for now (e.g. if server restarted) to prevent infinite reload loop
+        # But for valid sessions, check reasonable limits.
+        if start_time:
+            # Max theoretically: 4 coins = 1 pt. 
+            # If user gets 100pts -> 400 coins. 
+            # 400 coins would take at least ~80 seconds.
+            # So roughly 1.5 points per second max is physically possible.
+            # We use 10 pts/sec + buffer to be SUPER safe.
+            max_possible = elapsed * 10 + 100 
+            
+            if score > max_possible:
+                print(f"CHEAT BLOCKED: Score {score} > Max {max_possible} (Elapsed {elapsed:.2f}s)")
+                return jsonify({"error": "Score impossible", "reload": True}), 400
+        else:
+            print("WARNING: Missing ambulance_start_time. Allowing score blindly.")
+
+        # Ensure Level Exists
+        level = Level.query.filter_by(slug="ambulance_chase").first()
+        if not level:
+            # Fallback if seed failed
+            level = Level(slug="ambulance_chase", name="Course Ambulance", description="Fix", difficulty="moyen", icon="car")
+            db.session.add(level)
+            db.session.commit()
+
         progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
         
         if not progress:
             progress = Progress(user_id=user.id, level_id=level.id, status="en_cours")
             db.session.add(progress)
         
-        # Update score if new score is higher
         if score > progress.score:
             progress.score = score
             progress.status = "termine"
@@ -793,6 +835,249 @@ def register_routes(app: Flask) -> None:
             "score": progress.score,
             "best_score": progress.score
         })
+
+    # --- PENDU SERVER-SIDE LOGIC ---
+    
+    @app.route("/api/pendu/state")
+    def api_pendu_state():
+        user = current_user()
+        if not user:
+             return jsonify({"error": "Authentification requise"}), 401
+        
+        # Robust lookup
+        level = Level.query.filter_by(slug="pendu_300").first()
+        if not level: level = Level.query.filter_by(slug="pendu").first()
+        
+        if not level: return jsonify({"error": "Niveau introuvable"}), 404
+
+        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+        
+        if not progress:
+            progress = Progress(user_id=user.id, level_id=level.id, data={"played_count": 0, "won_count": 0, "lost_count": 0}, status="en_cours")
+            db.session.add(progress)
+            db.session.commit()
+            
+        data = progress.data or {}
+        
+        # Use direct counters 
+        played_count = data.get("played_count", 0)
+        won_count = data.get("won_count", 0)
+        lost_count = data.get("lost_count", 0)
+        
+        # Sync simple score reference
+        calculated_score = won_count * 10
+        if progress.score != calculated_score:
+            progress.score = calculated_score
+            db.session.commit()
+        
+        return jsonify({
+            "played_count": played_count,
+            "won_count": won_count,
+            "lost_count": lost_count,
+            "total_words": 300,
+            "score": progress.score
+        })
+
+    @app.route("/api/pendu/word") # Legacy name kept for 'next word'
+    def api_pendu_next():
+        import random
+        from game_engine import PENDU_WORDS # Import here or top level
+        
+        user = current_user()
+        if not user: return jsonify({"error": "Auth"}), 401
+        
+        # Robust Level Lookup
+        level = Level.query.filter_by(slug="pendu_300").first()
+        if not level:
+             # Try fallback to 'pendu' just in case old slug persists
+            level = Level.query.filter_by(slug="pendu").first()
+            if not level:
+                 # Auto-create locally if missing to prevent crash
+                 level = Level(slug="pendu_300", name="Lexique 300", description="Devinez", difficulty="expert", icon="brain")
+                 db.session.add(level)
+                 db.session.commit()
+
+        # Init new game
+        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+        
+        played_indices = []
+        if progress and progress.data:
+            played_indices = progress.data.get('played_indices', [])
+            
+        total_words = len(PENDU_WORDS)
+        all_indices = set(range(total_words))
+        played_set = set(played_indices)
+        
+        available = list(all_indices - played_set)
+        
+        if not available:
+            # If all words played, reset history to allow replay?
+            # Or just pick random from all?
+            # User said "pas les re avoir", but if exhausted, game over?
+            # Let's simple reset for infinite play but maybe user wants "Done".
+            # For now, let's just pick any random one if all done (infinite loop mode)
+            next_index = random.randint(0, total_words - 1)
+        else:
+            next_index = random.choice(available)
+            
+        game = PenduGame(next_index)
+        
+        # Save state in session
+        session['pendu_state'] = {
+            'word': game.word,
+            'index': game.word_index,
+            'guessed': [],
+            'wrong_count': 0,
+            'finished': False,
+            'success': False
+        }
+        
+        return jsonify(game.get_state())
+
+    @app.route("/api/pendu/guess", methods=["POST"])
+    def api_pendu_guess():
+        user = current_user()
+        if not user: return jsonify({"error": "Auth"}), 401
+        
+        state = session.get('pendu_state')
+        if not state:
+            return jsonify({"error": "Session Expired", "reload": True}), 400
+            
+        data = request.get_json()
+        letter = (data.get('letter') or '').upper()
+        
+        if not letter or len(letter) != 1:
+            return jsonify({"error": "Invalid letter"}), 400
+            
+        # Reconstruct game
+        game = PenduGame(state['index'])
+        game.word = state['word']
+        game.guessed = set(state['guessed'])
+        game.wrong_count = state['wrong_count']
+        game.finished = state['finished']
+        
+        # Process
+        result = game.guess(letter)
+        
+        # Debug print
+        print(f"DEBUG: Guess '{letter}' for word '{game.word}' -> In? {letter in game.word}. WrongCount={result['wrong_count']}")
+        
+        # Save back
+        state['guessed'] = result['guessed_letters']
+        state['wrong_count'] = result['wrong_count']
+        state['finished'] = result['finished']
+        state['score_gained'] = result['score_gained'] # 10 if win
+        session['pendu_state'] = state
+        session.modified = True
+        
+        # If finished/won, update DB
+        if result['finished']:
+             level = Level.query.filter_by(slug="pendu_300").first()
+             if not level: level = Level.query.filter_by(slug="pendu").first()
+             
+             progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+             if not progress:
+                 progress = Progress(user=user, level=level)
+                 db.session.add(progress)
+             
+             # Init data if needed
+             if not progress.data: progress.data = {}
+             # Need shallow copy for modification tracking
+             d = dict(progress.data)
+             
+             d['played_count'] = d.get('played_count', 0) + 1
+             
+             if result['success']:
+                 d['won_count'] = d.get('won_count', 0) + 1
+                 progress.score = (progress.score or 0) + 10
+                 
+                 # Add to played history
+                 played = d.get('played_indices', [])
+                 if state['index'] not in played:
+                     played.append(state['index'])
+                 d['played_indices'] = played
+                 
+             else:
+                 d['lost_count'] = d.get('lost_count', 0) + 1
+                 # Do NOT add to played_indices if lost, so they can retry it later?
+                 # "Quand ils sont deja passer on ne peut pas les re avoir" -> usually means "Cleared".
+                 # If lost, usually we want to retry. If "passed" means "attempted", then add here.
+                 # Assuming "passed" means "successfully done" (acquired). If lost, retry is good.
+                 pass
+                 
+             progress.data = d
+             flag_modified(progress, "data")
+             db.session.commit()
+
+        return jsonify(result)
+
+    @app.route("/api/pendu/result", methods=["POST"])
+    def api_pendu_result():
+        return jsonify({"ok": True, "finished": True})
+
+    # --- MISSION ENGINE API ---
+    @app.route("/api/mission/start/<slug>", methods=["POST"])
+    def api_mission_start(slug):
+        user = current_user()
+        if not user: return jsonify({"error": "Auth"}), 401
+        
+        engine = MissionEngine(slug)
+        # Store state in session
+        session[f'mission_{slug}'] = {
+            'step_id': engine.current_step_id,
+            'score': 0,
+            'history': []
+        }
+        return jsonify(engine.get_step_data())
+        
+    @app.route("/api/mission/action/<slug>", methods=["POST"])
+    def api_mission_action(slug):
+        user = current_user()
+        state = session.get(f'mission_{slug}')
+        if not user or not state: return jsonify({"error": "No active mission"}), 400
+        
+        engine = MissionEngine(slug)
+        # Hydrate
+        engine.current_step_id = state['step_id']
+        engine.score = state['score']
+        engine.history = state['history']
+        
+        data = request.get_json()
+        
+        # Handle regular Choice vs Minigame Result
+        if 'minigame_result' in data:
+            result = engine.process_minigame_result(data['minigame_result'])
+        else:
+            choice_idx = data.get('choice_index')
+            if choice_idx is None: return jsonify({"error": "Missing choice"}), 400
+            result = engine.make_choice(choice_idx)
+            
+        # Save state
+        state['step_id'] = engine.current_step_id
+        state['score'] = engine.score
+        state['history'] = engine.history
+        session[f'mission_{slug}'] = state
+        session.modified = True
+        
+        # If finished, save to DB
+        if engine.finished:
+             level = Level.query.filter_by(slug=slug).first()
+             progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
+             if not progress:
+                 progress = Progress(user=user, level=level)
+                 db.session.add(progress)
+             
+             # If high score?
+             if engine.score > (progress.score or 0):
+                 progress.score = engine.score
+             
+             progress.status = 'termine'
+             db.session.commit()
+             
+             # Return finished state
+             return jsonify({'finished': True, 'final_score': engine.score})
+             
+        return jsonify(result)
 
     @app.route("/api/admin/users", methods=["GET"])
     def api_admin_users():
@@ -1064,129 +1349,9 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         return jsonify(serialize_questionnaire(questionnaire))
 
-    # --------------------------------------------------------------------------
-    # PENDU APIs
-    # --------------------------------------------------------------------------
 
-    @app.route("/api/pendu/state")
-    def api_pendu_state():
-        user = current_user()
-        if not user:
-             return jsonify({"error": "Authentification requise"}), 401
-        
-        level = Level.query.filter_by(slug="pendu_300").first_or_404()
-        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
-        
-        if not progress:
-            progress = Progress(user_id=user.id, level_id=level.id, data={"played_indices": [], "won": 0, "lost": 0}, status="en_cours")
-            db.session.add(progress)
-            db.session.commit()
-            
-        data = progress.data or {}
-        if not isinstance(data, dict): data = {} 
-        
-        played = data.get("played_indices", [])
-        won = data.get("won", 0)
-        lost = data.get("lost", 0)
-        
-        total_words = 300
-        played_count = len(played)
-        
-        # Sync score in case of drift
-        correct_score = won * 10
-        if progress.score != correct_score:
-            progress.score = correct_score
-            db.session.commit()
-        
-        return jsonify({
-            "played_count": played_count,
-            "won_count": won,
-            "lost_count": lost,
-            "total_words": total_words,
-            "score": progress.score,
-            "is_finished": played_count >= total_words
-        })
+    # Old routes removed in favor of game_engine integration
 
-    @app.route("/api/pendu/word")
-    def api_pendu_word():
-        import random
-        user = current_user()
-        if not user: return jsonify({"error": "Authentification requise"}), 401
-        
-        level = Level.query.filter_by(slug="pendu_300").first_or_404()
-        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
-        
-        data = progress.data or {}
-        played_indices = set(data.get("played_indices", []))
-        
-        all_indices = set(range(len(PENDU_WORDS)))
-        available = list(all_indices - played_indices)
-        
-        if not available:
-            return jsonify({"finished": True})
-            
-        idx = random.choice(available)
-        word = PENDU_WORDS[idx]
-        
-        return jsonify({
-            "word": word,
-            "index": idx,
-            "length": len(word)
-        })
-
-    @app.route("/api/pendu/result", methods=["POST"])
-    def api_pendu_result():
-        user = current_user()
-        if not user: return jsonify({"error": "Authentification requise"}), 401
-        
-        payload = request.get_json()
-        word_index = payload.get("index")
-        success = payload.get("success")
-        
-        if word_index is None or success is None:
-            return jsonify({"error": "Invalid payload"}), 400
-            
-        level = Level.query.filter_by(slug="pendu_300").first_or_404()
-        progress = Progress.query.filter_by(user_id=user.id, level_id=level.id).first()
-        
-        data = dict(progress.data or {})
-        played = set(data.get("played_indices", []))
-        
-        if word_index in played:
-            # Idempotency: If already played, just return current state
-            return jsonify({
-                "ok": True,
-                "score": progress.score,
-                "won": data.get("won", 0),
-                "lost": data.get("lost", 0),
-                "finished": len(played) >= 300
-            })
-            
-        data.setdefault("played_indices", []).append(word_index)
-        
-        if success:
-            data["won"] = data.get("won", 0) + 1
-            progress.score += 10
-        else:
-            data["lost"] = data.get("lost", 0) + 1
-            
-        progress.data = data
-        flag_modified(progress, "data")
-        
-        if len(data["played_indices"]) >= 300:
-            progress.status = "termine"
-            
-        # Enforce score calculation rule: 10 pts per win
-        progress.score = data["won"] * 10
-        db.session.commit()
-        
-        return jsonify({
-            "ok": True,
-            "score": progress.score,
-            "won": data["won"],
-            "lost": data["lost"],
-            "finished": len(data["played_indices"]) >= 300
-        })
 
 
 
