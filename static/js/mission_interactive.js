@@ -68,7 +68,7 @@ function renderStep(data) {
         const btn = document.createElement('button');
         btn.className = 'choice-btn';
         btn.textContent = choice.label;
-        btn.onclick = () => handleChoice(choice);
+        btn.onclick = (e) => handleChoice(choice, e.currentTarget);
         choicesContainer.appendChild(btn);
     });
 
@@ -79,9 +79,18 @@ function renderStep(data) {
         if (data.step_id.includes('electrodes')) startElectrodeGame();
         if (data.step_id.includes('shock')) startShockGame();
     }
+
+    if (data.is_game_over) {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn critical'; // Use critical style for attention or just standard
+        btn.textContent = '❌ ÉCHEC - Recommencer';
+        btn.style.borderColor = '#ff3f3f';
+        btn.onclick = () => location.reload();
+        choicesContainer.appendChild(btn);
+    }
 }
 
-async function handleChoice(choice) {
+async function handleChoice(choice, btnElement) {
     // Send action to server
     try {
         const res = await fetch(`/api/mission/action/${MISSION_SLUG}`, {
@@ -91,7 +100,35 @@ async function handleChoice(choice) {
         });
         const nextData = await res.json();
 
-        // Optimistic UI feedback could be added here
+        // Feedback Logic
+        if (btnElement) {
+            // Check if score improved or stayed same (neutral/good) vs decreased/gameover (bad)
+            // But nextData.score is total score. We need to compare with previous.
+            // We can approximate: if choice.score is negative -> wrong, positive -> correct.
+            // But choice.score isn't fully exposed in 'choice' object passed here? Yes it is if we used the original object.
+            // Wait, data.choices in renderStep comes from get_step_data which has limited fields.
+            // Checking game_engine.py: get_step_data sends 'choices' with 'index', 'label', 'type'. Score is hidden.
+
+            // So we must rely on Result comparison or optimistic assumption.
+            // Easier: Compare current score displayed in DOM with new score.
+            const currentScore = parseInt(scoreDisplay.textContent) || 0;
+            const newScore = nextData.score;
+            const delta = newScore - currentScore;
+
+            if (nextData.is_game_over || delta < 0) {
+                btnElement.classList.add('wrong');
+            } else if (delta > 0) {
+                btnElement.classList.add('correct');
+            } else {
+                // Zero points. If it leads to next step successfully, maybe neutral or correct?
+                // Some correct steps give 0 points (e.g. intro).
+                // Use blue/default or maybe green if not game over?
+            }
+
+            // Wait a bit to show color
+            await new Promise(r => setTimeout(r, 800));
+        }
+
         renderStep(nextData);
 
     } catch (e) {
@@ -107,10 +144,18 @@ function startCPRMinigame() {
     const btn = qs('#cpr-btn');
     const bpmDisplay = qs('#bpm-counter');
     const streakDisplay = qs('#cpr-streak');
+    const skipBtn = qs('#cpr-skip-btn');
 
     let clicks = [];
     let streak = 0;
     let lastClick = 0;
+    let failures = 0;
+
+    // Reset UI
+    if (skipBtn) {
+        skipBtn.classList.add('hidden');
+        skipBtn.onclick = () => end(true);
+    }
 
     const end = (success) => {
         minigameOverlay.classList.add('hidden');
@@ -132,7 +177,11 @@ function startCPRMinigame() {
                 streak++;
             } else {
                 bpmDisplay.style.color = '#ff3f3f';
-                streak = 0;
+                streak = 0; // Failure of rhythm
+                failures++;
+                if (failures >= 5 && skipBtn) {
+                    skipBtn.classList.remove('hidden');
+                }
             }
             streakDisplay.textContent = `Série : ${streak} / 8`;
         }

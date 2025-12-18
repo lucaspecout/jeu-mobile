@@ -195,8 +195,6 @@ function updateProfileMetrics(data) {
   if (profileMissionPoints) profileMissionPoints.textContent = `Missions : ${data.mission_points ?? 0}`;
   if (profileMinigamePoints) profileMinigamePoints.textContent = `Mini-jeux : ${data.minigame_points ?? 0}`;
 
-  if (profileMinigamePoints) profileMinigamePoints.textContent = `Mini-jeux : ${data.minigame_points ?? 0}`;
-
   if (profileBadges) {
     profileBadges.innerHTML = '';
     profileBadges.classList.remove('hidden');
@@ -238,16 +236,18 @@ function updateProfileMetrics(data) {
         // Check if earned via backend data OR local condition check
         const isEarned = earnedTitles.has(badge.title) || badge.condition(data);
 
-        const card = document.createElement('div');
-        card.className = `badge-item ${isEarned ? 'earned' : 'locked'}`;
-        card.innerHTML = `
-                <div class="badge-icon">${badge.icon}</div>
-                <div class="badge-info">
-                    <strong>${badge.title}</strong>
-                    <span>${badge.desc}</span>
-                </div>
-            `;
-        grid.appendChild(card);
+        if (isEarned) {
+          const card = document.createElement('div');
+          card.className = `badge-item earned`;
+          card.innerHTML = `
+                    <div class="badge-icon">${badge.icon}</div>
+                    <div class="badge-info">
+                        <strong>${badge.title}</strong>
+                        <span>${badge.desc}</span>
+                    </div>
+                `;
+          grid.appendChild(card);
+        }
       });
 
       if (grid.children.length > 0) {

@@ -288,6 +288,9 @@
       <div id="cpr-streak" style="margin-top: 2rem; font-size: 1.5rem; font-weight: bold; color: white;">Série : 0 / 8
       </div>
       <p class="muted" style="margin-top: 0.5rem; font-size: 0.9rem;">Enchaînez 8 bonnes compressions !</p>
+      <button id="cpr-skip-btn" class="btn secondary hidden"
+        style="margin-top: 1rem; border-color: rgba(255,255,255,0.3);">Passer l'étape (Infirmière prend le
+        relais)</button>
     </div>
 
     <!-- Electrodes Overlay -->
@@ -352,8 +355,8 @@
   <script>
     window.MISSION_CONTEXT = {
       levelId: {{ level.id }},
-      slug: {{ level.slug | tojson }},
-      savedScore: {{ progress.score if progress else 0 }}
+    slug: { { level.slug | tojson } },
+    savedScore: { { progress.score if progress else 0 } }
     };
   </script>
   <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
