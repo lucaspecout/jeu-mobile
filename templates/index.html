@@ -69,16 +69,13 @@
         </div>
       </div>
     </div>
+    {% if page != 'mini-game' %}
     <header class="hero" id="accueil">
       <div class="hero__content">
         {% if page == 'missions' %}
         <p class="hero__eyebrow">Hangar</p>
         <h1>Tableau des missions</h1>
         <p class="hero__tagline">Accède au hangar, choisis un objectif et suis ta progression.</p>
-        {% elif page == 'mini-game' %}
-        <p class="hero__eyebrow">Réflexes</p>
-        <h1>Petit jeu dédié</h1>
-        <p class="hero__tagline">Déclenche une simulation rapide pour garder les automatismes actifs.</p>
         {% elif page == 'questionnaire' %}
         <p class="hero__eyebrow">Retour</p>
         <h1>Zone questionnaire</h1>
@@ -104,6 +101,9 @@
         </div>
       </div>
     </header>
+    {% else %}
+    <div style="height: 32px;"></div>
+    {% endif %}
 
     <main class="shell">
       {% if page == 'home' %}
@@ -330,7 +330,11 @@
             <h2>Réflexes de secours</h2>
             <p class="muted">Active un mini-jeu thématique pour entraîner la réactivité de l'équipe.</p>
           </div>
-          <button class="btn secondary">Lancer le module</button>
+          {% if user and user.role in ['admin', 'formateur'] %}
+          <button class="btn primary small" id="btn-create-quiz" style="gap:0.5rem">
+            <span>+</span> Créer un quiz
+          </button>
+          {% endif %}
         </div>
         <div class="menu-grid" id="level-menu" data-category="minigame"></div>
       </section>
@@ -583,6 +587,57 @@
             <p class="muted" id="result-detail">Continue pour améliorer ton score.</p>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUIZ BUILDER MODAL -->
+  <div class="modal-overlay hidden" id="quiz-builder" style="z-index: 100;">
+    <div class="modal-backdrop" id="builder-overlay"></div>
+    <div class="modal-card">
+      <div class="modal__header">
+        <div>
+          <p class="eyebrow">Administration</p>
+          <h3>Créateur de Quiz</h3>
+        </div>
+        <button class="btn ghost small" id="close-builder">✕</button>
+      </div>
+
+      <div class="wizard__stepper" style="margin: 0 1.5rem 1.5rem;">
+        <div class="wizard__step wizard__step--active" id="b-step-1"><span class="wizard__badge">1</span> Infos</div>
+        <div class="wizard__step" id="b-step-2"><span class="wizard__badge">2</span> Questions</div>
+      </div>
+
+      <div class="modal__body" id="builder-body" style="padding: 0 1.5rem;">
+        <!-- STEP 1 -->
+        <div id="builder-panel-1" class="form">
+          <label>Titre du Quiz
+            <input type="text" id="b-title" placeholder="Ex: Procédure Incendie">
+          </label>
+          <label>Description courte
+            <input type="text" id="b-desc" placeholder="Ex: Test sur les extincteurs...">
+          </label>
+          <label>Icône
+            <div class="avatar-picker__grid" id="b-icons">
+              <div class="avatar-chip active" data-icon="sparkles"><span class="avatar">✨</span> Standard</div>
+              <div class="avatar-chip" data-icon="shield"><span class="avatar">🛡️</span> Proto</div>
+              <div class="avatar-chip" data-icon="medkit"><span class="avatar">🧰</span> Urgence</div>
+              <div class="avatar-chip" data-icon="target"><span class="avatar">🎯</span> Précision</div>
+            </div>
+          </label>
+        </div>
+
+        <!-- STEP 2 -->
+        <div id="builder-panel-2" class="hidden">
+          <div id="questions-list" style="max-height: 50vh; overflow-y: auto; padding-right: 0.5rem;"></div>
+          <button class="btn ghost" id="btn-add-q" style="width:100%; margin-top:1rem; border-style:dashed;">+ Ajouter
+            une question</button>
+        </div>
+      </div>
+
+      <div class="modal__footer" style="display:flex; justify-content:space-between; margin-top:1.5rem;">
+        <button class="btn secondary" id="b-prev" disabled>Précédent</button>
+        <button class="btn primary" id="b-next">Suivant</button>
       </div>
     </div>
   </div>

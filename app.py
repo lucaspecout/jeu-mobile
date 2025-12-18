@@ -32,6 +32,7 @@ def create_app():
         ensure_level_category_column()
         ensure_progress_data_column()
         ensure_bonus_points_column()
+        ensure_level_data_column()
         bootstrap_levels()
         ensure_admin_account()
 
@@ -63,6 +64,7 @@ class Level(db.Model):
     icon = db.Column(db.String(40), nullable=False)
     category = db.Column(db.String(20), default="mission")
     is_locked = db.Column(db.Boolean, default=False)
+    data = db.Column(db.JSON, default={})
     progress = db.relationship("Progress", back_populates="level", cascade="all, delete")
 
 
@@ -149,6 +151,14 @@ LEVEL_SEED = [
         "description": "Collectez des pièces avec votre ambulance tout en évitant les dépanneuses !",
         "difficulty": "moyen",
         "icon": "joystick",
+        "category": "minigame",
+    },
+    {
+        "slug": "quiz_dps",
+        "name": "Quiz DPS 38",
+        "description": "Reconnaissez les dispositifs et lieux de mission Protec 38.",
+        "difficulty": "facile",
+        "icon": "map",
         "category": "minigame",
     },
 ]
@@ -261,6 +271,27 @@ def ensure_level_category_column():
     db.session.commit()
 
 
+    db.session.commit()
+
+
+def ensure_level_data_column():
+    inspector = inspect(db.engine)
+    column_names = {column["name"] for column in inspector.get_columns("level")}
+    if "data" in column_names:
+        return
+
+    dialect = db.engine.dialect.name
+    if dialect == "sqlite":
+        with db.engine.connect() as conn:
+            conn.execute(text("ALTER TABLE level ADD COLUMN data JSON"))
+            conn.commit()
+    else:
+        db.session.execute(
+            text('ALTER TABLE "level" ADD COLUMN IF NOT EXISTS data JSONB DEFAULT \'{}\'')
+        )
+    db.session.commit()
+
+
 def ensure_admin_account():
     admin_email = "admin@protec.local"
     admin_user = User.query.filter_by(email=admin_email).first()
@@ -278,11 +309,12 @@ def ensure_admin_account():
 
 
 def bootstrap_levels():
-    # Remove old levels that are not in SEED
+    # Remove old levels that are not in SEED AND are not custom minigames
     target_slugs = {l["slug"] for l in LEVEL_SEED}
     existing_levels = Level.query.all()
     for lvl in existing_levels:
-        if lvl.slug not in target_slugs:
+        # Only delete if it's NOT in seed AND NOT a custom minigame
+        if lvl.slug not in target_slugs and lvl.category != 'minigame':
             db.session.delete(lvl)
             
     for level_data in LEVEL_SEED:
@@ -318,19 +350,30 @@ def serialize_progress(progress: Progress):
 
 
 def serialize_level(level: Level, progress=None):
-    return {
+    data = {
         "id": level.id,
         "slug": level.slug,
         "name": level.name,
         "description": level.description,
         "difficulty": level.difficulty,
         "icon": level.icon,
-        "difficulty": level.difficulty,
-        "icon": level.icon,
         "category": level.category,
         "is_locked": level.is_locked,
         "progress": progress,
     }
+    
+    # Calculate Max Score for Custom Quizzes
+    if level.category == 'minigame' and level.data and 'scenario' in level.data:
+        max_score = 0
+        for step in level.data['scenario']:
+            if 'choices' in step:
+                # Sum max possible score per step
+                step_max = max((c.get('score', 0) for c in step.get('choices', [])), default=0)
+                max_score += step_max
+        if max_score > 0:
+            data['max_score'] = max_score
+            
+    return data
 
 
 def serialize_user(user: User):
@@ -595,11 +638,30 @@ def register_routes(app: Flask) -> None:
         
         if level.slug == 'pendu_300':
             return render_template("mission_pendu.html", level=level, progress=progress, total_score=total_score)
+
+        if level.slug == 'quiz_dps' or level.category == 'minigame':
+            return render_template("mission_quiz_dps.html", level=level, progress=progress)
         
         if level.slug == 'ambulance_chase':
             return render_template("mission_ambulance.html", level=level, progress=progress)
             
         return render_template("mission.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
+
+    @app.route("/api/admin/level/<int:level_id>", methods=["DELETE"])
+    def delete_level(level_id):
+        user = current_user()
+        if not user or user.role != "admin":
+            return jsonify({"error": "Unauthorized"}), 403
+            
+        level = Level.query.get_or_404(level_id)
+        # Optional: Prevent deleting seeded/locked levels if needed, but for now allow all
+        
+        # Delete associated progress
+        Progress.query.filter_by(level_id=level.id).delete()
+        
+        db.session.delete(level)
+        db.session.commit()
+        return jsonify({"success": True})
 
     @app.route("/mini-game")
     def mini_game_page():
@@ -1021,14 +1083,26 @@ def register_routes(app: Flask) -> None:
         user = current_user()
         if not user: return jsonify({"error": "Auth"}), 401
         
-        engine = MissionEngine(slug)
+        # Check for custom scenario in DB
+        level = Level.query.filter_by(slug=slug).first()
+        custom_scenario = None
+        if level and level.data and 'scenario' in level.data:
+            custom_scenario = level.data['scenario']
+        
+        engine = MissionEngine(slug, custom_scenario=custom_scenario)
+        # Hydrate step first to generate map
+        step_data = engine.get_step_data()
+        
         # Store state in session
         session[f'mission_{slug}'] = {
             'step_id': engine.current_step_id,
             'score': 0,
-            'history': []
+            'history': [],
+            'choice_map': engine.choice_map,
+            'is_custom': bool(custom_scenario), # Flag for action route
+            'scenario': custom_scenario # Store for persistence if needed, or re-fetch
         }
-        return jsonify(engine.get_step_data())
+        return jsonify(step_data)
         
     @app.route("/api/mission/action/<slug>", methods=["POST"])
     def api_mission_action(slug):
@@ -1036,11 +1110,20 @@ def register_routes(app: Flask) -> None:
         state = session.get(f'mission_{slug}')
         if not user or not state: return jsonify({"error": "No active mission"}), 400
         
-        engine = MissionEngine(slug)
+        # Restore engine
+        custom_scenario = state.get('scenario') 
+        # Fallback if not in session but in DB (redundancy)
+        if not custom_scenario and state.get('is_custom'):
+             level = Level.query.filter_by(slug=slug).first()
+             if level and level.data:
+                 custom_scenario = level.data.get('scenario')
+
+        engine = MissionEngine(slug, custom_scenario=custom_scenario)
         # Hydrate
         engine.current_step_id = state['step_id']
         engine.score = state['score']
         engine.history = state['history']
+        engine.choice_map = state.get('choice_map')
         
         data = request.get_json()
         
@@ -1049,13 +1132,18 @@ def register_routes(app: Flask) -> None:
             result = engine.process_minigame_result(data['minigame_result'])
         else:
             choice_idx = data.get('choice_index')
-            if choice_idx is None: return jsonify({"error": "Missing choice"}), 400
-            result = engine.make_choice(choice_idx)
+            choice_lbl = data.get('choice_label')
+            
+            if choice_idx is None and choice_lbl is None: 
+                return jsonify({"error": "Missing choice"}), 400
+                
+            result = engine.make_choice(choice_index=choice_idx, choice_label=choice_lbl)
             
         # Save state
         state['step_id'] = engine.current_step_id
         state['score'] = engine.score
         state['history'] = engine.history
+        state['choice_map'] = engine.choice_map
         session[f'mission_{slug}'] = state
         session.modified = True
         
@@ -1074,8 +1162,24 @@ def register_routes(app: Flask) -> None:
              progress.status = 'termine'
              db.session.commit()
              
-             # Return finished state
-             return jsonify({'finished': True, 'final_score': engine.score})
+             progress.status = 'termine'
+             db.session.commit()
+             
+             # Return finished state with full data
+             final_step = engine.get_step_data()
+             final_step['finished'] = True
+             final_step['final_score'] = engine.score
+             
+             # Create/Calc Max Score
+             if level.category == 'minigame' and level.data and 'scenario' in level.data:
+                 max_pts = 0
+                 for step in level.data['scenario']:
+                    if 'choices' in step:
+                        step_max = max((c.get('score', 0) for c in step.get('choices', [])), default=0)
+                        max_pts += step_max
+                 final_step['max_score'] = max_pts
+                 
+             return jsonify(final_step)
              
         return jsonify(result)
 
@@ -1349,6 +1453,130 @@ def register_routes(app: Flask) -> None:
         db.session.commit()
         return jsonify(serialize_questionnaire(questionnaire))
 
+
+    @app.route("/api/upload", methods=["POST"])
+    def api_upload():
+        # Generic upload handler
+        user = current_user()
+        if not user or user.role not in ['admin', 'formateur']:
+             return jsonify({"error": "Unauthorized"}), 403
+             
+        if 'file' not in request.files:
+            return jsonify({"error": "No file part"}), 400
+            
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No selected file"}), 400
+            
+        if file:
+            filename = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+            # Ensure upload dir exists
+            upload_folder = os.path.join(app.static_folder, 'uploads')
+            os.makedirs(upload_folder, exist_ok=True)
+            
+            filepath = os.path.join(upload_folder, filename)
+            file.save(filepath)
+            
+            return jsonify({"url": f"/static/uploads/{filename}"})
+            
+    @app.route("/api/admin/create-custom-mission", methods=["POST"])
+    def api_create_custom_mission():
+        user = current_user()
+        if not user or user.role not in ['admin', 'formateur']:
+             return jsonify({"error": "Unauthorized"}), 403
+             
+        data = request.get_json()
+        title = data.get('title')
+        description = data.get('description', '')
+        image = data.get('image', 'pulse') # Icon
+        questions = data.get('questions', [])
+        
+        if not title or not questions:
+            return jsonify({"error": "Invalid data"}), 400
+            
+        # Generate Slug
+        import re
+        base_slug = re.sub(r'[^a-z0-9]', '_', title.lower())
+        slug = f"custom_{base_slug}_{int(datetime.now().timestamp())}"
+        
+        # Build Scenario
+        scenario = []
+        total_q = len(questions)
+        
+        for i, q in enumerate(questions):
+            q_id = f"q{i+1}"
+            next_id = f"feedback_{q_id}" 
+            
+            # Question Step
+            step = {
+                'id': q_id,
+                'phase': f"{title} : Question {i+1}/{total_q}",
+                'speaker': "Quiz",
+                'text': q['text'],
+                'img': q.get('image'), # Optional image
+                'shuffle': True,
+                'choices': []
+            }
+            
+            # Feedback Step
+            correct_choice = next((c for c in q['choices'] if c.get('is_correct')), None)
+            correct_label = correct_choice['label'] if correct_choice else "N/A"
+            
+            feedback_step = {
+                'id': next_id,
+                'phase': "Correction",
+                'speaker': "Formateur",
+                'text': f"Faux ! La bonne réponse était : {correct_label}.",
+                'choices': [{
+                    'label': 'Question suivante' if i < total_q - 1 else 'Voir les résultats',
+                    'next': f"q{i+2}" if i < total_q - 1 else 'final',
+                    'score': 0
+                }]
+            }
+            
+            # Build Choices
+            for c in q['choices']:
+                step['choices'].append({
+                    'label': c['label'],
+                    'next': f"q{i+2}" if i < total_q - 1 and c.get('is_correct') else (next_id if not c.get('is_correct') else 'final' if i == total_q -1 else f"q{i+2}"), 
+                    # Logic correction:
+                    # If Correct:
+                    #   If not last question -> next question (skip feedback)
+                    #   If last question -> final (skip feedback)
+                    # If Wrong:
+                    #   -> Go to feedback step
+                    'next': next_id if not c.get('is_correct') else (f"q{i+2}" if i < total_q - 1 else 'final'),
+                    'score': 10 if c.get('is_correct') else 0
+                })
+                
+            scenario.append(step)
+            scenario.append(feedback_step)
+            
+        # Final Step
+        scenario.append({
+            'id': 'final',
+            'phase': 'Terminé',
+            'speaker': 'Système',
+            'text': f"Quiz {title} terminé. Bravo !",
+            'finished': True,
+            'choices': []
+        })
+        
+        # Create Level
+        level = Level(
+            slug=slug,
+            name=title,
+            description=description,
+            difficulty='custom',
+            icon=image,
+            category='minigame',
+            data={'scenario': scenario}
+        )
+        
+        db.session.add(level)
+        db.session.commit()
+        
+        return jsonify({"ok": True, "slug": slug})
 
     # Old routes removed in favor of game_engine integration
 

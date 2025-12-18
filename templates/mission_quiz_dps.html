@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="fr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Quiz DPS 38 - Protec Rescue</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0F172A;
+            --card-bg: rgba(15, 23, 42, 0.85);
+            --primary: #3B82F6;
+            --accent: #8B5CF6;
+            --text: #F8FAFC;
+            --success: #10B981;
+            --error: #EF4444;
+            --glass: rgba(255, 255, 255, 0.08);
+            --border: rgba(255, 255, 255, 0.15);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- BACKGROUND & SCENE --- */
+        .scene-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+
+        .scene-bg {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            object-position: center bottom;
+            background: #000;
+        }
+
+        /* --- HEADER --- */
+        header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 20;
+            padding: 0.5rem 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: linear-gradient(180deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+        }
+
+        .brand {
+            font-weight: 800;
+            font-size: 1rem;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+
+        .header-controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .btn-quit {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--border);
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            backdrop-filter: blur(4px);
+            font-weight: bold;
+            pointer-events: auto;
+        }
+
+        .score-pill {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid var(--border);
+            padding: 0.3rem 0.8rem;
+            border-radius: 50px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            backdrop-filter: blur(4px);
+        }
+
+        .score-val {
+            color: var(--primary);
+        }
+
+        /* --- MAIN CONTENT (HUD) --- */
+        main {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 10;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            pointer-events: none;
+        }
+
+        /* --- QUESTION CARD --- */
+        .question-card {
+            pointer-events: auto;
+            background: var(--card-bg);
+            border-top: 1px solid var(--border);
+            border-radius: 20px 20px 0 0;
+            padding: 1.25rem;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
+            animation: slideUp 0.4s ease-out forwards;
+        }
+
+        @keyframes slideUp {
+            from {
+                transform: translateY(100%);
+            }
+
+            to {
+                transform: translateY(0);
+            }
+        }
+
+        .phase-tag {
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.25rem;
+        }
+
+        .question-text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            line-height: 1.3;
+            margin-bottom: 1rem;
+            min-height: 2.6rem;
+        }
+
+        /* --- CHOICES GRID --- */
+        .choices-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .btn-choice {
+            background: var(--glass);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 0.8rem;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            text-align: center;
+            cursor: pointer;
+            transition: transform 0.1s, background 0.2s;
+            position: relative;
+            min-height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1.2;
+        }
+
+        .btn-choice:active {
+            transform: scale(0.96);
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        /* Feedback States */
+        .btn-choice.correct {
+            background: rgba(16, 185, 129, 0.3) !important;
+            border-color: var(--success) !important;
+            color: #fff !important;
+        }
+
+        .btn-choice.wrong {
+            background: rgba(239, 68, 68, 0.3) !important;
+            border-color: var(--error) !important;
+            color: #fff !important;
+        }
+
+        .btn-choice:disabled {
+            opacity: 0.7;
+            pointer-events: none;
+        }
+
+        .final-score-display {
+            font-size: 2rem;
+            color: var(--primary);
+            font-weight: 800;
+            margin: 1rem 0;
+            text-align: center;
+        }
+
+        /* --- LOADING --- */
+        #loader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: #000;
+            z-index: 100;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s;
+        }
+
+        #loader.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Context Injection -->
+    <script>
+        window.MISSION_CONTEXT = {
+            slug: "{{ level.slug }}",
+            levelId: "{{ level.id }}",
+            initialScore: {{ progress.score if progress and progress.score is not none else 0 }}
+        };
+    </script>
+
+    <div id="loader">
+        <h2 style="color:white">CHARGEMENT...</h2>
+    </div>
+
+    <!-- BACKGROUND -->
+    <div class="scene-layer">
+        <img id="scene-img" class="scene-bg" src="" alt="">
+    </div>
+
+    <!-- HEADER -->
+    <header>
+        <button class="btn-quit" onclick="window.location.href='/missions'">✕</button>
+
+        <div class="header-controls">
+            <span class="brand">Quiz DPS</span>
+            <div class="score-pill">
+                <span id="score-display">0</span> pts
+            </div>
+        </div>
+    </header>
+
+    <!-- UI -->
+    <main>
+        <div id="game-ui" class="question-card">
+            <div id="phase-label" class="phase-tag">INITIALISATION</div>
+            <div id="main-text" class="question-text">...</div>
+
+            <div id="choices-area" class="choices-grid">
+                <!-- Javascript will populate this -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const STATE = {
+            slug: window.MISSION_CONTEXT.slug,
+            score: window.MISSION_CONTEXT.initialScore
+        };
+
+        const DOM = {
+            loader: document.getElementById('loader'),
+            sceneImg: document.getElementById('scene-img'),
+            score: document.getElementById('score-display'),
+            phase: document.getElementById('phase-label'),
+            text: document.getElementById('main-text'),
+            choices: document.getElementById('choices-area')
+        };
+
+        DOM.score.textContent = STATE.score;
+
+        async function apiCall(endpoint, method = 'POST', body = {}) {
+            try {
+                const res = await fetch(endpoint, {
+                    method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                return await res.json();
+            } catch (e) {
+                alert("Erreur de connexion : " + e.message);
+                throw e;
+            }
+        }
+
+        function renderStep(data) {
+            const step = data;
+
+            if (!step || !step.step_id) {
+                console.error("Invalid Step Data", step);
+                DOM.text.textContent = "Erreur de données.";
+                return;
+            }
+
+            // 1. Text & Phase
+            DOM.phase.textContent = step.phase || 'QUESTION';
+            DOM.text.textContent = step.text || '';
+
+            // 2. Image
+            if (step.img) {
+                let imgPath = step.img;
+                if (imgPath.startsWith('../')) {
+                    imgPath = '/static/img/' + imgPath.replace('../', '');
+                }
+                DOM.sceneImg.src = imgPath;
+            }
+
+            // 3. Choices
+            DOM.choices.innerHTML = '';
+
+            if (step.choices && step.choices.length > 0) {
+                step.choices.forEach((choice, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = 'btn-choice';
+                    btn.textContent = choice.label;
+                    btn.dataset.score = choice.score || 0; // STORE SCORE FOR LOGIC
+
+                    btn.addEventListener('click', function (e) {
+                        e.preventDefault();
+                        handleChoice(idx, btn);
+                    });
+
+                    DOM.choices.appendChild(btn);
+                });
+            } else if (step.finished) {
+                const btnReturn = document.createElement('button');
+                btnReturn.className = 'btn-choice';
+                btnReturn.style.background = "var(--primary)";
+                btnReturn.style.borderColor = "var(--primary)";
+                btnReturn.textContent = "Retour au menu";
+                btnReturn.onclick = () => window.location.href = "/missions";
+                DOM.choices.appendChild(btnReturn);
+            }
+        }
+
+        async function handleChoice(index, btnElem) {
+            // 1. Lock UI
+            const allBtns = document.querySelectorAll('.btn-choice');
+            allBtns.forEach(b => b.disabled = true);
+
+            // 2. REVEAL LOGIC
+            // Loop through all buttons to show the correct one
+            allBtns.forEach(btn => {
+                const s = parseInt(btn.dataset.score || 0);
+                if (s > 0) {
+                    btn.classList.add('correct');
+                } else {
+                    btn.classList.add('wrong');
+                }
+            });
+
+            try {
+                // 3. Call API - Send label for robust stateless check
+                const payload = {
+                    choice_index: index,
+                    choice_label: btnElem.textContent
+                };
+                const data = await apiCall(`/api/mission/action/${STATE.slug}`, 'POST', payload);
+
+                // 4. Update Score
+                const newScore = (data.score !== undefined) ? data.score : STATE.score;
+                STATE.score = newScore;
+                DOM.score.textContent = STATE.score;
+
+                // 5. Wait so user sees the solution (2.0s)
+                await new Promise(r => setTimeout(r, 2000));
+
+                // 6. Transition
+                document.getElementById('game-ui').style.opacity = '0';
+                setTimeout(() => {
+                    renderStep(data);
+                    document.getElementById('game-ui').style.opacity = '1';
+                    document.getElementById('game-ui').style.animation = 'none';
+                    document.getElementById('game-ui').offsetHeight;
+                    document.getElementById('game-ui').style.animation = 'slideUp 0.4s ease-out forwards';
+                }, 300);
+
+            } catch (e) {
+                console.error(e);
+                alert("Erreur: " + e.message);
+                allBtns.forEach(b => b.disabled = false);
+            }
+        }
+
+        // Init
+        (async function init() {
+            try {
+                const data = await apiCall(`/api/mission/start/${STATE.slug}`, 'POST');
+                DOM.loader.classList.add('hidden');
+                if (data) renderStep(data);
+            } catch (e) {
+                console.error(e);
+            }
+        })();
+    </script>
+</body>
+
+</html>

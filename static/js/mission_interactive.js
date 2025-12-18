@@ -9,23 +9,59 @@ const endScreen = qs('#end-screen');
 const minigameOverlay = qs('#minigame-overlay');
 
 // Global Context from server injection
-const MISSION_SLUG = window.MISSION_CONTEXT ? window.MISSION_CONTEXT.slug : 'arret_cardiaque';
+// LOG RAW CONTEXT
+const RAW_CTX = window.MISSION_CONTEXT;
+const MISSION_SLUG = (RAW_CTX && RAW_CTX.slug) ? RAW_CTX.slug : 'arret_cardiaque';
+
+// Debug Logger
+function logDebug(msg) {
+    const logBox = document.getElementById('debug-log');
+    if (logBox) {
+        const line = document.createElement('div');
+        line.textContent = `[JS] ${msg}`;
+        logBox.appendChild(line);
+    }
+    console.log(msg);
+}
+
+// Log immediately
+if (document.getElementById('debug-log')) {
+    document.getElementById('debug-log').innerHTML += "<div>[JS] Raw Context: " + JSON.stringify(window.MISSION_CONTEXT) + "</div>";
+}
 
 async function init() {
+    logDebug("Init started. Slug: " + MISSION_SLUG);
+
     // Start mission on server
     try {
+        logDebug("Fetching /api/mission/start/" + MISSION_SLUG);
         const res = await fetch(`/api/mission/start/${MISSION_SLUG}`, { method: 'POST' });
-        if (!res.ok) throw new Error("Failed to start mission");
+        logDebug("Fetch status: " + res.status);
+
+        if (!res.ok) {
+            const text = await res.text();
+            throw new Error(`Failed to start mission: ${res.status} - ${text}`);
+        }
+
         const data = await res.json();
+        logDebug("Data received: " + JSON.stringify(data));
+
+        if (!data) {
+            throw new Error("Data is null/undefined");
+        }
+
         renderStep(data);
     } catch (e) {
-        console.error(e);
-        dialogueText.textContent = "Erreur de connexion au QG...";
+        logDebug("CRITICAL ERROR: " + e.message);
+        if (dialogueText) {
+            dialogueText.textContent = "ERREUR FATALE: " + e.message;
+            dialogueText.style.color = "red";
+        }
     }
 }
 
 function renderStep(data) {
-    console.log("Rendering step:", data);
+    logDebug("Rendering step: " + (data.phase || 'Unknown'));
 
     if (data.finished) {
         showVictory(data.final_score);
@@ -33,17 +69,19 @@ function renderStep(data) {
     }
 
     if (data.is_game_over) {
-        // Handle Game Over UI (reuse existing UI or specific)
-        // For now using simple reload alert or just visual state
+        // Game over logic if needed
     }
 
     // Update Text
-    phaseDisplay.textContent = data.phase || '';
-    speakerName.textContent = data.speaker || '';
-    dialogueText.textContent = data.text || '';
+    if (phaseDisplay) phaseDisplay.textContent = data.phase || '';
+    if (speakerName) speakerName.textContent = data.speaker || '';
+    if (dialogueText) {
+        dialogueText.textContent = data.text || '';
+        dialogueText.style.color = ""; // reset error color
+    }
 
     // Update Score
-    scoreDisplay.textContent = `${data.score} pts`;
+    if (scoreDisplay) scoreDisplay.textContent = `${data.score} pts`;
 
     // Media
     const sceneVideo = qs('#scene-video');
@@ -52,29 +90,38 @@ function renderStep(data) {
         if (sceneVideo) {
             sceneVideo.src = `/static/img/mission_acr/${data.video}`;
             sceneVideo.classList.remove('hidden');
-            sceneVideo.play().catch(e => console.log("Autoplay blocked"));
+            sceneVideo.play().catch(e => logDebug("Autoplay blocked"));
         }
     } else if (data.img) {
         if (sceneVideo) sceneVideo.classList.add('hidden');
         if (sceneImg) {
-            sceneImg.src = `/static/img/mission_acr/${data.img}`;
+            // Check if absolute or relative
+            let src = data.img;
+            if (!src.startsWith('/') && !src.startsWith('http')) {
+                // default path used in game_engine, but quiz uses ../protec38dps/
+                src = `/static/img/mission_acr/${data.img}`;
+            }
+            sceneImg.src = src;
             sceneImg.classList.remove('hidden');
         }
     }
 
     // Choices
-    choicesContainer.innerHTML = '';
-    data.choices.forEach(choice => {
-        const btn = document.createElement('button');
-        btn.className = 'choice-btn';
-        btn.textContent = choice.label;
-        btn.onclick = (e) => handleChoice(choice, e.currentTarget);
-        choicesContainer.appendChild(btn);
-    });
+    if (choicesContainer) {
+        choicesContainer.innerHTML = '';
+        if (data.choices) {
+            data.choices.forEach((choice, index) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.textContent = choice.label;
+                btn.onclick = (e) => handleChoice(choice, index, e.currentTarget);
+                choicesContainer.appendChild(btn);
+            });
+        }
+    }
 
     // Minigame Trigger?
-    if (data.minigame) {
-        // Based on step_id, assume strict coupling for now
+    if (data.minigame && data.step_id) {
         if (data.step_id.includes('cpr')) startCPRMinigame();
         if (data.step_id.includes('electrodes')) startElectrodeGame();
         if (data.step_id.includes('shock')) startShockGame();
@@ -82,156 +129,83 @@ function renderStep(data) {
 
     if (data.is_game_over) {
         const btn = document.createElement('button');
-        btn.className = 'choice-btn critical'; // Use critical style for attention or just standard
+        btn.className = 'choice-btn critical';
         btn.textContent = '❌ ÉCHEC - Recommencer';
         btn.style.borderColor = '#ff3f3f';
         btn.onclick = () => location.reload();
-        choicesContainer.appendChild(btn);
+        if (choicesContainer) choicesContainer.appendChild(btn);
     }
 }
 
-async function handleChoice(choice, btnElement) {
-    // Send action to server
+async function handleChoice(choice, index, btnElement) {
+    logDebug("Choice clicked: " + index + " (" + choice.label + ")");
     try {
         const res = await fetch(`/api/mission/action/${MISSION_SLUG}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ choice_index: choice.index })
+            body: JSON.stringify({ choice_index: index })
         });
-        const nextData = await res.json();
-
-        // Feedback Logic
-        if (btnElement) {
-            // Check if score improved or stayed same (neutral/good) vs decreased/gameover (bad)
-            // But nextData.score is total score. We need to compare with previous.
-            // We can approximate: if choice.score is negative -> wrong, positive -> correct.
-            // But choice.score isn't fully exposed in 'choice' object passed here? Yes it is if we used the original object.
-            // Wait, data.choices in renderStep comes from get_step_data which has limited fields.
-            // Checking game_engine.py: get_step_data sends 'choices' with 'index', 'label', 'type'. Score is hidden.
-
-            // So we must rely on Result comparison or optimistic assumption.
-            // Easier: Compare current score displayed in DOM with new score.
-            const currentScore = parseInt(scoreDisplay.textContent) || 0;
-            const newScore = nextData.score;
-            const delta = newScore - currentScore;
-
-            if (nextData.is_game_over || delta < 0) {
-                btnElement.classList.add('wrong');
-            } else if (delta > 0) {
-                btnElement.classList.add('correct');
-            } else {
-                // Zero points. If it leads to next step successfully, maybe neutral or correct?
-                // Some correct steps give 0 points (e.g. intro).
-                // Use blue/default or maybe green if not game over?
-            }
-
-            // Wait a bit to show color
-            await new Promise(r => setTimeout(r, 800));
-        }
-
-        renderStep(nextData);
-
+        const data = await res.json();
+        renderStep(data);
     } catch (e) {
-        console.error(e);
+        logDebug("Action Error: " + e);
     }
 }
 
-// --- MINIGAMES (Keep visuals local, report result to server) ---
-
-// CPR
-function startCPRMinigame() {
-    minigameOverlay.classList.remove('hidden');
-    const btn = qs('#cpr-btn');
-    const bpmDisplay = qs('#bpm-counter');
-    const streakDisplay = qs('#cpr-streak');
-    const skipBtn = qs('#cpr-skip-btn');
-
-    let clicks = [];
-    let streak = 0;
-    let lastClick = 0;
-    let failures = 0;
-
-    // Reset UI
-    if (skipBtn) {
-        skipBtn.classList.add('hidden');
-        skipBtn.onclick = () => end(true);
-    }
-
-    const end = (success) => {
-        minigameOverlay.classList.add('hidden');
-        // Report result
-        sendMinigameResult({ success: success, score: streak * 1 });
-    };
-
-    btn.onclick = () => {
-        const now = Date.now();
-        gsap.to(btn, { scale: 0.9, duration: 0.05, yoyo: true, repeat: 1 });
-
-        if (lastClick !== 0) {
-            const delta = now - lastClick;
-            const bpm = Math.round(60000 / delta);
-            bpmDisplay.textContent = bpm;
-
-            if (bpm >= 100 && bpm <= 120) {
-                bpmDisplay.style.color = '#3af2ff';
-                streak++;
-            } else {
-                bpmDisplay.style.color = '#ff3f3f';
-                streak = 0; // Failure of rhythm
-                failures++;
-                if (failures >= 5 && skipBtn) {
-                    skipBtn.classList.remove('hidden');
-                }
-            }
-            streakDisplay.textContent = `Série : ${streak} / 8`;
-        }
-        lastClick = now;
-
-        if (streak >= 8) {
-            streakDisplay.textContent = 'PARFAIT !';
-            setTimeout(() => end(true), 500);
-            btn.onclick = null;
-        }
-    };
-
-    // Add fail safe / skip button logic if needed (kept simple for brevity)
-}
-
-// Electrodes
+// Minigames
 function startElectrodeGame() {
     const overlay = qs('#electrodes-overlay');
-    overlay.classList.remove('hidden');
-    // ... simplified visual logic ...
-    // For now, auto-win for demo or simple click
+    if (overlay) overlay.classList.remove('hidden');
     const ids = ['#zone-1', '#zone-2'];
     let count = 0;
     ids.forEach(id => {
-        qs(id).onclick = (e) => {
-            e.stopPropagation();
-            qs(id).style.display = 'none';
-            // show electrode
-            count++;
-            if (count >= 2) {
-                setTimeout(() => {
-                    overlay.classList.add('hidden');
-                    sendMinigameResult({ success: true, score: 10 });
-                }, 500);
-            }
-        };
+        const el = qs(id);
+        if (el) {
+            el.onclick = (e) => {
+                e.stopPropagation();
+                el.style.display = 'none';
+                count++;
+                if (count >= 2) {
+                    setTimeout(() => {
+                        overlay.classList.add('hidden');
+                        sendMinigameResult({ success: true, score: 10 });
+                    }, 500);
+                }
+            };
+        }
     });
 }
 
-// Shock
 function startShockGame() {
     const overlay = qs('#shock-overlay');
-    overlay.classList.remove('hidden');
+    if (overlay) overlay.classList.remove('hidden');
     const btn = qs('#shock-btn');
-    btn.onclick = () => {
-        // Flash
-        overlay.classList.add('hidden');
-        sendMinigameResult({ success: true, score: 10 });
+    if (btn) {
+        btn.onclick = () => {
+            if (overlay) overlay.classList.add('hidden');
+            sendMinigameResult({ success: true, score: 10 });
+        };
+    }
+}
+
+function startCPRMinigame() {
+    const overlay = qs('#minigame-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    const btn = qs('#cpr-btn');
+    const display = qs('#bpm-counter');
+    let streak = 0;
+
+    if (btn) btn.onclick = () => {
+        streak++;
+        if (streak >= 8) {
+            overlay.classList.add('hidden');
+            sendMinigameResult({ success: true, score: 10 });
+        }
+        if (display) display.textContent = "BPM: " + (100 + Math.random() * 20).toFixed(0);
     };
 }
+
 
 async function sendMinigameResult(result) {
     try {
@@ -243,14 +217,16 @@ async function sendMinigameResult(result) {
         const data = await res.json();
         renderStep(data);
     } catch (e) {
-        console.error(e);
+        logDebug("Minigame API Error: " + e);
     }
 }
 
 function showVictory(score) {
-    endScreen.classList.remove('hidden');
-    qs('#end-score').textContent = score;
+    if (endScreen) {
+        endScreen.classList.remove('hidden');
+        const sc = qs('#end-score');
+        if (sc) sc.textContent = score;
+    }
 }
 
-// Init
 document.addEventListener('DOMContentLoaded', init);

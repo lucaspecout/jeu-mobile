@@ -313,7 +313,8 @@ const MAX_SCORES = {
   'arret_cardiaque': 150,
   'bilan_inconscient': 120,
   'pendu_300': 3000,
-  'ambulance_chase': 50
+  'ambulance_chase': 50,
+  'quiz_dps': 60
 };
 
 function getStarRating(score, maxScore) {
@@ -334,7 +335,7 @@ function renderLevel(level) {
   const score = level.progress ? level.progress.score : 0;
 
   // Determine max score
-  const maxScore = MAX_SCORES[level.slug] || 150; // Default to 150 if unknown
+  const maxScore = level.max_score || MAX_SCORES[level.slug] || 150; // Dynamic or Default
 
   const stars = level.progress ? getStarRating(score, maxScore) : '';
 
@@ -343,10 +344,12 @@ function renderLevel(level) {
   let adminControls = '';
   if (isAdmin) {
     adminControls = `
-        <div class="admin-actions">
+        <div class="admin-actions" style="margin-top:0.5rem; display:flex; gap:0.5rem;">
            <button class="btn ghost small toggle-lock" data-id="${level.id}">
-              ${isLocked ? '🔓 Déverrouiller' : '🔒 Verrouiller'}
+              ${isLocked ? '🔓' : '🔒'}
            </button>
+           ${level.slug !== 'quiz_dps' && level.slug !== 'arret_cardiaque' && level.slug !== 'bilan_inconscient' && level.slug !== 'pendu_300' && level.slug !== 'ambulance_chase' ?
+        `<button class="btn danger small delete-level" data-id="${level.id}" onclick="deleteLevel(${level.id}, '${level.name}')">🗑️</button>` : ''}
         </div>
       `;
   }
@@ -373,6 +376,20 @@ function renderLevel(level) {
   `;
   return wrapper;
 }
+
+window.deleteLevel = async (id, name) => {
+  if (!confirm(`Supprimer définitivement le niveau "${name}" ?`)) return;
+  try {
+    const res = await fetch(`/api/admin/level/${id}`, { method: 'DELETE' });
+    if (res.ok) {
+      refreshMenu();
+    } else {
+      alert("Erreur lors de la suppression");
+    }
+  } catch (e) {
+    alert("Erreur technique");
+  }
+};
 
 function iconFor(icon) {
   switch (icon) {
@@ -1459,5 +1476,217 @@ async function saveBonusPoints(userId) {
 }
 
 window.saveBonusPoints = saveBonusPoints;
+
+
+// --- QUIZ BUILDER LOGIC ---
+const builderModal = qs('#quiz-builder');
+const closeBuilderBtn = qs('#close-builder');
+const builderOverlay = qs('#builder-overlay');
+const btnCreateQuiz = qs('#btn-create-quiz');
+const bStep1 = qs('#builder-panel-1');
+const bStep2 = qs('#builder-panel-2');
+const bNext = qs('#b-next');
+const bPrev = qs('#b-prev');
+const questionsList = qs('#questions-list');
+const btnAddQ = qs('#btn-add-q');
+let builderData = {
+  title: '',
+  description: '',
+  icon: 'sparkles',
+  questions: []
+};
+
+// Open/Close
+function toggleBuilder(show) {
+  if (builderModal) {
+    if (show) builderModal.classList.remove('hidden');
+    else builderModal.classList.add('hidden');
+  }
+}
+if (btnCreateQuiz) btnCreateQuiz.addEventListener('click', () => toggleBuilder(true));
+if (closeBuilderBtn) closeBuilderBtn.addEventListener('click', () => toggleBuilder(false));
+if (builderOverlay) builderOverlay.addEventListener('click', () => toggleBuilder(false));
+
+// Icons
+const bIcons = qsa('#b-icons .icon-chip');
+if (bIcons) {
+  bIcons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      bIcons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      builderData.icon = btn.dataset.icon;
+    });
+  });
+}
+
+// Navigation
+if (bNext) {
+  bNext.addEventListener('click', async () => {
+    if (!bStep1.classList.contains('hidden')) {
+      // Validate Step 1
+      const title = qs('#b-title').value;
+      if (!title) return alert("Le titre est requis");
+      builderData.title = title;
+      builderData.description = qs('#b-desc').value;
+
+      // Move to Step 2
+      bStep1.classList.add('hidden');
+      bStep2.classList.remove('hidden');
+      qs('#b-step-1').classList.remove('wizard__step--active');
+      qs('#b-step-2').classList.add('wizard__step--active');
+      bPrev.disabled = false;
+      bNext.textContent = "Créer le Quiz";
+
+      // Add one question if empty
+      if (questionsList.children.length === 0) addQuestionUI();
+    } else {
+      // Validate Step 2 & Submit
+      const qBlocks = qsa('.q-block');
+      if (qBlocks.length === 0) return alert("Ajoutez au moins une question");
+
+      const questions = [];
+      let error = false;
+
+      qBlocks.forEach(block => {
+        if (error) return;
+        const text = block.querySelector('.q-text').value;
+        if (!text) { error = true; return alert("Tous les textes de question doivent être remplis"); }
+
+        const img = block.dataset.img || null;
+        const choices = [];
+        const choiceInputs = block.querySelectorAll('.q-choice');
+        const correctInput = block.querySelector('input[type="radio"]:checked');
+        const correctIdx = correctInput ? parseInt(correctInput.value) : -1;
+
+        if (correctIdx === -1) { error = true; return alert("Veuillez sélectionner la bonne réponse pour chaque question."); }
+
+        choiceInputs.forEach((input, idx) => {
+          choices.push({
+            label: input.value || `Choix ${idx + 1}`,
+            is_correct: idx === correctIdx
+          });
+        });
+
+        questions.push({ text, image: img, choices });
+      });
+
+      if (error) return;
+
+      // SUBMIT
+      try {
+        bNext.disabled = true;
+        bNext.textContent = "Création...";
+
+        // Helper for POST since we are outside main scope? No, we are in main.js
+        const res = await fetch('/api/admin/create-custom-mission', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: builderData.title,
+            description: builderData.description,
+            icon: builderData.icon,
+            questions: questions
+          })
+        });
+
+        const json = await res.json();
+
+        if (res.ok) {
+          alert("Quiz créé avec succès !");
+          toggleBuilder(false);
+          window.location.reload();
+        } else {
+          throw new Error(json.error || "Erreur inconnue");
+        }
+
+      } catch (e) {
+        alert("Erreur: " + e.message);
+        bNext.disabled = false;
+        bNext.textContent = "Créer le Quiz";
+      }
+    }
+  });
+}
+
+if (bPrev) {
+  bPrev.addEventListener('click', () => {
+    bStep2.classList.add('hidden');
+    bStep1.classList.remove('hidden');
+    qs('#b-step-2').classList.remove('wizard__step--active');
+    qs('#b-step-1').classList.add('wizard__step--active');
+    bPrev.disabled = true;
+    bNext.textContent = "Suivant";
+  });
+}
+
+// Dynamic Question UI
+function addQuestionUI() {
+  const div = document.createElement('div');
+  const id = Date.now() + Math.random();
+  div.className = "card card--glass q-block";
+  div.style.marginBottom = "1rem";
+  div.innerHTML = `
+        <div style="display:flex; justify-content:space-between; margin-bottom:1rem;">
+            <h4 class="q-num">Question</h4>
+            <button class="btn ghost small q-del">Supprimer</button>
+        </div>
+        <label>Texte
+            <input type="text" class="q-text" placeholder="Posez votre question..." style="width:100%; margin-bottom:1rem;">
+        </label>
+        
+        <div class="file-upload" style="margin-bottom:1rem; border:1px dashed var(--border); padding:1rem; text-align:center;">
+             <p class="label">Image (Optionnel)</p>
+             <input type="file" accept="image/*" class="q-file">
+             <div class="q-img-preview" style="margin-top:0.5rem; max-height:100px; overflow:hidden;"></div>
+        </div>
+        
+        <div class="grid-choices" style="display:grid; grid-template-columns: 1fr 1fr; gap:0.5rem;">
+             ${[0, 1, 2, 3].map(i => `
+                <div style="display:flex; align-items:center; gap:0.5rem;">
+                    <input type="radio" name="correct-${id}" value="${i}" ${i === 0 ? 'checked' : ''}>
+                    <input type="text" class="q-choice" placeholder="Réponse ${i + 1}" style="flex:1">
+                </div>
+             `).join('')}
+        </div>
+    `;
+
+  // Upload Logic
+  const fileInput = div.querySelector('.q-file');
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      div.dataset.img = data.url;
+      div.querySelector('.q-img-preview').innerHTML = `<img src="${data.url}" style="height:100px; border-radius:4px;">`;
+    } catch (err) {
+      alert("Erreur upload image");
+    }
+  });
+
+  // Delete
+  div.querySelector('.q-del').addEventListener('click', () => {
+    div.remove();
+    updateQNumbers();
+  });
+
+  questionsList.appendChild(div);
+  updateQNumbers();
+}
+
+if (btnAddQ) btnAddQ.addEventListener('click', addQuestionUI);
+
+function updateQNumbers() {
+  qsa('.q-block').forEach((el, i) => {
+    el.querySelector('.q-num').textContent = `Question ${i + 1}`;
+  });
+}
+// End Builder Logic
 
 document.addEventListener('DOMContentLoaded', playSplashThenInit);

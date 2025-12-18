@@ -217,8 +217,144 @@ INTERACTIVE_SCENARIOS = {
          { 'id': 'game_over_dae_touch', 'phase': 'DANGER', 'img': 'echec.jpg', 'speaker': 'DAE', 'text': 'Mouvement perturbant.', 'choices': [], 'is_game_over': True },
          { 'id': 'bad_dae', 'phase': 'ÉCHEC', 'img': 'echec.jpg', 'speaker': 'Conseil', 'text': 'Allumer le DAE d\'abord.', 'choices': [], 'is_game_over': True },
          { 'id': 'bad_check', 'phase': 'PERTE DE TEMPS', 'img': 'protec_scene.jpg', 'speaker': 'Proto', 'text': 'Ne pas vérifier le pouls.', 'choices': [{'label': 'Reprendre RCP', 'next': 'victory', 'score': 20}]}
+    ],
+    'quiz_dps': [
+        {
+            'id': 'intro',
+            'phase': 'Quiz DPS : Question 1/6',
+            'img': '../protec38dps/1.jpg',
+            'speaker': 'Défi Observation',
+            'text': 'Identifiez ce lieu ou ce dispositif.',
+            'shuffle': True,
+            'choices': [
+                {'label': 'Saint-Joseph-de-Rivière', 'next': 'q2', 'score': 10},
+                {'label': 'Voiron', 'next': 'feedback_q1', 'score': 0},
+                {'label': 'Autrans', 'next': 'feedback_q1', 'score': 0},
+                {'label': 'Saint Ismier', 'next': 'feedback_q1', 'score': 0}
+            ]
+        },
+        {
+            'id': 'feedback_q1',
+            'phase': 'Correction',
+            'speaker': 'Formateur',
+            'text': 'Faux ! La bonne réponse était : Saint-Joseph-de-Rivière.',
+            'choices': [{'label': 'Question suivante', 'next': 'q2', 'score': 0}]
+        },
+        {
+            'id': 'q2',
+            'phase': 'Quiz DPS : Question 2/6',
+            'img': '../protec38dps/2.jpg',
+            'speaker': 'Défi Observation',
+            'text': 'Quel est cet événement ?',
+            'shuffle': True,
+            'choices': [
+                {'label': 'Match de rugby', 'next': 'q3', 'score': 10},
+                {'label': 'Trail', 'next': 'feedback_q2', 'score': 0},
+                {'label': 'Marathon', 'next': 'feedback_q2', 'score': 0},
+                {'label': 'Course de vélo', 'next': 'feedback_q2', 'score': 0}
+            ]
+        },
+        {
+            'id': 'feedback_q2',
+            'phase': 'Correction',
+            'speaker': 'Formateur',
+            'text': 'Faux ! La bonne réponse était : Match de rugby.',
+            'choices': [{'label': 'Question suivante', 'next': 'q3', 'score': 0}]
+        },
+        {
+            'id': 'q3',
+            'phase': 'Quiz DPS : Question 3/6',
+            'img': '../protec38dps/3.jpg',
+            'speaker': 'Défi Observation',
+            'text': 'Quel est cet événement ?',
+            'shuffle': True,
+            'choices': [
+                {'label': "Humani'run", 'next': 'q4', 'score': 10},
+                {'label': 'Marathon du Vercors', 'next': 'feedback_q3', 'score': 0},
+                {'label': 'TNR', 'next': 'feedback_q3', 'score': 0},
+                {'label': 'Bike Vercors', 'next': 'feedback_q3', 'score': 0}
+            ]
+        },
+        {
+            'id': 'feedback_q3',
+            'phase': 'Correction',
+            'speaker': 'Formateur',
+            'text': "Faux ! La bonne réponse était : Humani'run.",
+            'choices': [{'label': 'Question suivante', 'next': 'q4', 'score': 0}]
+        },
+        {
+            'id': 'q4',
+            'phase': 'Quiz DPS : Question 4/6',
+            'img': '../protec38dps/4.jpg',
+            'speaker': 'Défi Observation',
+            'text': 'Quel est cet événement ?',
+            'shuffle': True,
+            'choices': [
+                {'label': 'Jazz à Vienne', 'next': 'q5', 'score': 10},
+                {'label': 'Foire des Rameaux', 'next': 'feedback_q4', 'score': 0},
+                {'label': 'Feux d\'artifice Lac de Paladru', 'next': 'feedback_q4', 'score': 0},
+                {'label': 'Fête de la Musique', 'next': 'feedback_q4', 'score': 0}
+            ]
+        },
+        {
+            'id': 'feedback_q4',
+            'phase': 'Correction',
+            'speaker': 'Formateur',
+            'text': 'Faux ! La bonne réponse était : Jazz à Vienne.',
+            'choices': [{'label': 'Question suivante', 'next': 'q5', 'score': 0}]
+        },
+        {
+            'id': 'q5',
+            'phase': 'Quiz DPS : Question 5/6',
+            'img': '../protec38dps/5.jpg',
+            'speaker': 'Défi Observation',
+            'text': 'Quel est cet événement ?',
+            'shuffle': True,
+            'choices': [
+                {'label': 'TNR', 'next': 'q6', 'score': 10},
+                {'label': 'Trail d\'Uriage', 'next': 'feedback_q5', 'score': 0},
+                {'label': 'Fête de la Musique', 'next': 'feedback_q5', 'score': 0},
+                {'label': 'Vercors Musique Festival', 'next': 'feedback_q5', 'score': 0}
+            ]
+        },
+        {
+            'id': 'feedback_q5',
+            'phase': 'Correction',
+            'speaker': 'Formateur',
+            'text': 'Faux ! La bonne réponse était : TNR.',
+            'choices': [{'label': 'Question suivante', 'next': 'q6', 'score': 0}]
+        },
+        {
+            'id': 'q6',
+            'phase': 'Quiz DPS : Question 6/6',
+            'img': '../protec38dps/6.jpg',
+            'speaker': 'Défi Observation',
+            'text': 'Quel est cet événement ?',
+            'shuffle': True,
+            'choices': [
+                {'label': 'VTT Vercors', 'next': 'final', 'score': 10},
+                {'label': 'Marathon du Vercors', 'next': 'feedback_q6', 'score': 0},
+                {'label': 'TNR', 'next': 'feedback_q6', 'score': 0}
+            ]
+        },
+        {
+            'id': 'feedback_q6',
+            'phase': 'Correction',
+            'speaker': 'Formateur',
+            'text': 'Faux ! La bonne réponse était : VTT Vercors.',
+            'choices': [{'label': 'Voir les résultats', 'next': 'final', 'score': 0}]
+        },
+        {
+            'id': 'final',
+            'phase': 'Terminé',
+            'speaker': 'Système',
+            'text': 'Quiz terminé. Bravo !',
+            'finished': True,
+            'choices': []
+        }
     ]
 }
+print(f"DEBUG: LOADED SCENARIOS: {list(INTERACTIVE_SCENARIOS.keys())}")
 
 # --- Game Class Logic ---
 
@@ -275,10 +411,13 @@ class PenduGame:
         }
 
 class MissionEngine:
-    def __init__(self, slug):
+    def __init__(self, slug, custom_scenario=None):
         self.slug = slug
-        self.scenario = INTERACTIVE_SCENARIOS.get(slug, [])
-        self.current_step_id = 'intro'
+        if custom_scenario:
+            self.scenario = custom_scenario
+        else:
+            self.scenario = INTERACTIVE_SCENARIOS.get(slug, [])
+        self.current_step_id = 'intro' if not custom_scenario else custom_scenario[0]['id']
         self.score = 0
         self.history = []
         self.finished = False
@@ -288,15 +427,22 @@ class MissionEngine:
         if not step:
             return None
             
-        # Filter choices to not show hidden properties (though we control the response)
-        choices = []
-        for i, c in enumerate(step.get('choices', [])):
-            choices.append({
-                'index': i,
-                'label': c['label'],
-                'type': c.get('type', 'normal')
-            })
+        # Clone choices to avoid modifying global state, handle shuffling if needed
+        choices = [c.copy() for c in step.get('choices', [])]
+        
+        # Shuffling Logic
+        if step.get('shuffle', False):
+            # Annotate with original index before shuffling
+            for i, c in enumerate(choices):
+                c['_original_index'] = i
             
+            random.shuffle(choices)
+            
+            # Store mapping: displayed_index -> original_index
+            self.choice_map = {i: c['_original_index'] for i, c in enumerate(choices)}
+        else:
+            self.choice_map = None
+
         return {
             'step_id': step['id'],
             'phase': step.get('phase', ''),
@@ -304,13 +450,17 @@ class MissionEngine:
             'text': step.get('text', ''),
             'img': step.get('img'),
             'video': step.get('video'),
-            'choices': choices,
+            'choices': [
+                {'index': i, 'label': c['label'], 'type': c.get('type', 'default'), 'score': c.get('score', 0)}
+                for i, c in enumerate(choices)
+            ],
             'score': self.score,
             'is_game_over': step.get('is_game_over', False),
+            'finished': step.get('finished', False),
             'minigame': True if 'minigame' in step.get('id', '') else False # simplified hint
         }
 
-    def make_choice(self, choice_index):
+    def make_choice(self, choice_index=None, choice_label=None):
         if self.finished:
             return self.get_step_data()
             
@@ -319,8 +469,23 @@ class MissionEngine:
             return None
             
         choices = step.get('choices', [])
-        if 0 <= choice_index < len(choices):
-            choice = choices[choice_index]
+        choice = None
+        
+        # 1. Try Label Lookup (Preferred - Stateless)
+        if choice_label is not None:
+            choice = next((c for c in choices if c['label'] == choice_label), None)
+            
+        # 2. Fallback to Index
+        if not choice and choice_index is not None:
+            # Resolve index if map exists
+            real_index = choice_index
+            if hasattr(self, 'choice_map') and self.choice_map:
+                real_index = self.choice_map.get(choice_index, choice_index)
+
+            if 0 <= real_index < len(choices):
+                choice = choices[real_index]
+        
+        if choice:
             # Apply score
             self.score += choice.get('score', 0)
             if self.score < 0: self.score = 0
@@ -333,6 +498,12 @@ class MissionEngine:
             
             self.current_step_id = next_id
             self.history.append(self.current_step_id)
+            
+            # Check if new step is a finish step
+            next_step = next((s for s in self.scenario if s['id'] == self.current_step_id), None)
+            if next_step and next_step.get('finished'):
+                self.finished = True
+                
             return self.get_step_data()
             
         return self.get_step_data()
@@ -360,3 +531,4 @@ class MissionEngine:
 
         self.current_step_id = next_id
         return self.get_step_data()
+# Force reload timestamp
