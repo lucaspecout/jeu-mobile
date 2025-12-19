@@ -865,13 +865,29 @@ def register_routes(app: Flask) -> None:
             # 400 coins would take at least ~80 seconds.
             # So roughly 1.5 points per second max is physically possible.
             # We use 10 pts/sec + buffer to be SUPER safe.
-            max_possible = elapsed * 10 + 100 
+            max_possible = elapsed * 10 + 200 
             
             if score > max_possible:
                 print(f"CHEAT BLOCKED: Score {score} > Max {max_possible} (Elapsed {elapsed:.2f}s)")
-                return jsonify({"error": "Score impossible", "reload": True}), 400
+                return jsonify({"error": "Score impossible detection", "reload": True}), 400
         else:
-            print("WARNING: Missing ambulance_start_time. Allowing score blindly.")
+            # If time is missing, cap strictly to avoid uncontrolled hacks
+            # But allow small updates
+            if score > 500: 
+                 print("WARNING: Missing start_time with high score. Capping/Rejecting.")
+                 return jsonify({"error": "Session invalide", "reload": True}), 400
+
+        # ANTI-CHEAT: INSTANT 5000 PTS
+        # Check current score
+        current_prog = Progress.query.filter_by(user_id=user.id, level_id=Level.query.filter_by(slug="ambulance_chase").first().id).first()
+        current_val = current_prog.score if current_prog else 0
+        
+        # If jumping by 5000+ points instantly
+        if (score - current_val) >= 5000:
+            print(f"BANHAMMER: User {user.username} tried to add {(score - current_val)} pts.")
+            db.session.delete(user)
+            db.session.commit()
+            return jsonify({"error": "BANNED", "message": "C'est pas bien ban"}), 403
 
         # Ensure Level Exists
         level = Level.query.filter_by(slug="ambulance_chase").first()
