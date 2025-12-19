@@ -882,12 +882,15 @@ def register_routes(app: Flask) -> None:
         current_prog = Progress.query.filter_by(user_id=user.id, level_id=Level.query.filter_by(slug="ambulance_chase").first().id).first()
         current_val = current_prog.score if current_prog else 0
         
-        # If jumping by 5000+ points instantly
+        # If jumping by 5000+ points instantly AND not admin
         if (score - current_val) >= 5000:
-            print(f"BANHAMMER: User {user.username} tried to add {(score - current_val)} pts.")
-            db.session.delete(user)
-            db.session.commit()
-            return jsonify({"error": "BANNED", "message": "C'est pas bien ban"}), 403
+            if user.role != 'admin': # Admin Bypass
+                print(f"BANHAMMER: User {user.username} tried to add {(score - current_val)} pts.")
+                db.session.delete(user)
+                db.session.commit()
+                return jsonify({"error": "BANNED", "message": "C'est pas bien ban"}), 403
+            else:
+                print(f"ADMIN OVERRIDE: {user.username} set score to {score} (+{(score - current_val)})")
 
         # Ensure Level Exists
         level = Level.query.filter_by(slug="ambulance_chase").first()
