@@ -25,18 +25,22 @@ function renderAdminRow(user) {
         <span>${user.username}</span>
       </td>
       <td>${user.email}</td>
+      <td style="font-weight:bold; color:var(--primary);">${user.total_score || 0}</td>
+      <td>
+        <input class="bonus-input" type="number" value="${user.bonus_points || 0}" placeholder="Pts" style="width: 80px;" aria-label="Points Bonus">
+      </td>
       <td>
         <select class="role-select">
           ${Object.keys(ROLE_LABELS)
-            .map((role) => `<option value="${role}" ${user.role === role ? 'selected' : ''}>${ROLE_LABELS[role]}</option>`)
-            .join('')}
+      .map((role) => `<option value="${role}" ${user.role === role ? 'selected' : ''}>${ROLE_LABELS[role]}</option>`)
+      .join('')}
         </select>
       </td>
       <td>
         <input class="password-input" type="password" placeholder="Nouveau mot de passe" minlength="8" aria-label="Nouveau mot de passe">
       </td>
       <td class="admin-actions">
-        <button class="btn secondary save-role" type="button">Mettre à jour</button>
+        <button class="btn secondary save-role" type="button">Sauvegarder</button>
         <button class="btn danger delete-user" type="button">Supprimer</button>
       </td>
     </tr>
@@ -53,7 +57,7 @@ async function refreshAdminUsers() {
     }
     const data = await res.json();
     if (!data.users.length) {
-      adminTableBody.innerHTML = '<tr><td colspan="5" class="muted">Aucun compte enregistré pour le moment.</td></tr>';
+      adminTableBody.innerHTML = '<tr><td colspan="6" class="muted">Aucun compte enregistré pour le moment.</td></tr>';
       return;
     }
     adminTableBody.innerHTML = data.users
@@ -64,13 +68,13 @@ async function refreshAdminUsers() {
   }
 }
 
-async function updateUser(userId, role, password, triggerBtn) {
+async function updateUser(userId, role, password, bonus, triggerBtn) {
   try {
     triggerBtn?.setAttribute('disabled', 'true');
     const res = await fetch(`/api/admin/users/${userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, password }),
+      body: JSON.stringify({ role, password, bonus_points: parseInt(bonus) || 0 }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
@@ -114,10 +118,11 @@ function setupAdminPanel() {
       const row = target.closest('tr');
       const select = row?.querySelector('.role-select');
       const passwordInput = row?.querySelector('.password-input');
+      const bonusInput = row?.querySelector('.bonus-input');
       const userId = row?.dataset.userId;
       if (!select || !userId) return;
       clearAdminAlert();
-      updateUser(userId, select.value, passwordInput?.value, target);
+      updateUser(userId, select.value, passwordInput?.value, bonusInput?.value, target);
       if (passwordInput) passwordInput.value = '';
     }
 

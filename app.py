@@ -1211,15 +1211,22 @@ def register_routes(app: Flask) -> None:
         
         users = User.query.all()
         # Return list directly to match main.js expectation
-        return jsonify([
+        return jsonify({"users": [
             {
                 "id": u.id,
                 "username": u.username,
                 "email": u.email,
-                "bonus_points": u.bonus_points or 0
+                "role": u.role,
+                "avatar": u.avatar,
+                "bonus_points": u.bonus_points or 0,
+                "total_score": (
+                    sum(p.score for p in u.progress) + 
+                    sum(r.score for r in QuestionnaireResult.query.filter_by(user_id=u.id).all()) +
+                    (u.bonus_points or 0)
+                )
             }
             for u in users
-        ])
+        ]})
 
     @app.route("/api/admin/users/<int:user_id>/bonus", methods=["POST"])
     def api_admin_update_bonus(user_id):
@@ -1247,8 +1254,9 @@ def register_routes(app: Flask) -> None:
         data = request.get_json() or {}
         role = (data.get("role") or "").lower()
         password = data.get("password")
+        bonus_points = data.get("bonus_points")
 
-        if not role and not password:
+        if not role and not password and bonus_points is None:
             return jsonify({"error": "Aucune modification fournie"}), 400
 
         if role and role not in USER_ROLES:
@@ -1261,6 +1269,9 @@ def register_routes(app: Flask) -> None:
             if len(password) < 8:
                 return jsonify({"error": "Le mot de passe doit contenir au moins 8 caractères"}), 400
             user.password_hash = generate_password_hash(password)
+        if bonus_points is not None:
+             user.bonus_points = int(bonus_points)
+        
         db.session.commit()
         return jsonify(serialize_user_admin(user))
 
