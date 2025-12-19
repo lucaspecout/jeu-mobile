@@ -25,9 +25,8 @@ function renderAdminRow(user) {
         <span>${user.username}</span>
       </td>
       <td>${user.email}</td>
-      <td style="font-weight:bold; color:var(--primary);">${user.total_score || 0}</td>
       <td>
-        <input class="bonus-input" type="number" value="${user.bonus_points || 0}" placeholder="Pts" style="width: 80px;" aria-label="Points Bonus">
+        <input class="score-input" type="number" value="${user.total_score || 0}" placeholder="Score" style="width: 100px; font-weight: bold; color: var(--primary);" aria-label="Score Total">
       </td>
       <td>
         <select class="role-select">
@@ -57,7 +56,7 @@ async function refreshAdminUsers() {
     }
     const data = await res.json();
     if (!data.users.length) {
-      adminTableBody.innerHTML = '<tr><td colspan="6" class="muted">Aucun compte enregistré pour le moment.</td></tr>';
+      adminTableBody.innerHTML = '<tr><td colspan="5" class="muted">Aucun compte enregistré pour le moment.</td></tr>';
       return;
     }
     adminTableBody.innerHTML = data.users
@@ -68,20 +67,20 @@ async function refreshAdminUsers() {
   }
 }
 
-async function updateUser(userId, role, password, bonus, triggerBtn) {
+async function updateUser(userId, role, password, totalScore, triggerBtn) {
   try {
     triggerBtn?.setAttribute('disabled', 'true');
     const res = await fetch(`/api/admin/users/${userId}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ role, password, bonus_points: parseInt(bonus) || 0 }),
+      body: JSON.stringify({ role, password, total_score: parseInt(totalScore) || 0 }),
     });
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Mise à jour impossible');
     }
     await refreshAdminUsers();
-    setAdminAlert('Rôle mis à jour avec succès', false);
+    setAdminAlert('Informations mises à jour', false);
   } catch (err) {
     setAdminAlert(err.message);
   } finally {
@@ -118,11 +117,11 @@ function setupAdminPanel() {
       const row = target.closest('tr');
       const select = row?.querySelector('.role-select');
       const passwordInput = row?.querySelector('.password-input');
-      const bonusInput = row?.querySelector('.bonus-input');
+      const scoreInput = row?.querySelector('.score-input');
       const userId = row?.dataset.userId;
       if (!select || !userId) return;
       clearAdminAlert();
-      updateUser(userId, select.value, passwordInput?.value, bonusInput?.value, target);
+      updateUser(userId, select.value, passwordInput?.value, scoreInput?.value, target);
       if (passwordInput) passwordInput.value = '';
     }
 

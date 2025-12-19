@@ -1254,9 +1254,9 @@ def register_routes(app: Flask) -> None:
         data = request.get_json() or {}
         role = (data.get("role") or "").lower()
         password = data.get("password")
-        bonus_points = data.get("bonus_points")
+        total_score = data.get("total_score")
 
-        if not role and not password and bonus_points is None:
+        if not role and not password and total_score is None:
             return jsonify({"error": "Aucune modification fournie"}), 400
 
         if role and role not in USER_ROLES:
@@ -1269,8 +1269,12 @@ def register_routes(app: Flask) -> None:
             if len(password) < 8:
                 return jsonify({"error": "Le mot de passe doit contenir au moins 8 caractères"}), 400
             user.password_hash = generate_password_hash(password)
-        if bonus_points is not None:
-             user.bonus_points = int(bonus_points)
+        
+        if total_score is not None:
+             # Calculate delta
+             missions_sum = sum(p.score for p in user.progress)
+             quizzes_sum = sum(r.score for r in QuestionnaireResult.query.filter_by(user_id=user.id).all())
+             user.bonus_points = int(total_score) - (missions_sum + quizzes_sum)
         
         db.session.commit()
         return jsonify(serialize_user_admin(user))
