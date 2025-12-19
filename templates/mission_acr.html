@@ -15,13 +15,12 @@
     <script>
         try {
             window.MISSION_CONTEXT = {
-                levelId: {{ level.id |default ('null') }
-        },
-        slug: { { level.slug | tojson | safe } },
-        savedScore: { { (progress.score if progress else 0)| int } }
-      };
-        console.log("[Inline] Context defined:", window.MISSION_CONTEXT);
-    } catch (e) {
+                levelId: {{ level.id | default('null') }},
+                slug: {{ level.slug | tojson | safe }},
+                savedScore: {{ (progress.score if progress else 0)| int }}
+            };
+            console.log("[Inline] Context defined:", window.MISSION_CONTEXT);
+        } catch (e) {
             console.error("[Inline] Context Error:", e);
             window.MISSION_INLINE_ERROR = e.message;
         }
@@ -183,14 +182,6 @@
 </head>
 
 <body>
-    <div
-        style="position: fixed; top: 0; left: 0; z-index: 10000; background: black; color: lime; padding: 5px; font-weight: bold; font-family: monospace; font-size: 12px; pointer-events: none;">
-        DEBUG ID: {{ level.slug }} ({{ level.id }})
-        <div id="debug-log"
-            style="margin-top: 5px; opacity: 0.8; max-height: 200px; overflow: hidden; background: rgba(0,0,0,0.8); width: 300px;">
-        </div>
-    </div>
-
     <div class="mission-interactive">
         <div class="scene-container">
             <img id="scene-img" src="{{ url_for('static', filename='img/mission_acr/protec_intervention_start.jpg') }}"
@@ -212,9 +203,40 @@
 
         <div id="dialogue-container" class="dialogue-box">
             <h2 id="speaker-name" class="eyebrow">Chargement...</h2>
-            <p id="dialogue-text" class="dialogue-text">Connexion au serveur en cours... (v2-FIX)</p>
+            <p id="dialogue-text" class="dialogue-text">Connexion au serveur en cours... (v10)</p>
             <div id="choices-container" class="choices-grid">
                 <!-- Buttons injected by JS -->
+            </div>
+        </div>
+        
+        <!-- Minigames Overlays -->
+        <div id="minigame-overlay" class="overlay-game hidden" style="position:absolute; inset:0; z-index:50; background:rgba(0,0,0,0.9); display:flex; flex-direction:column; align-items:center; justify-content:center;">
+             <h2 style="color:white; margin-bottom:20px; font-family: 'Space Grotesk', sans-serif;">MASSAGE CARDIAQUE</h2>
+             <div id="bpm-counter" style="color:var(--primary, lime); font-size:3rem; font-weight:bold; margin-bottom:30px;">BPM: 0</div>
+             <button id="cpr-btn" class="btn primary" style="width:150px; height:150px; border-radius:50%; font-size:1.5rem; animation: pulse 1s infinite;">PRESSER</button>
+             <p style="color:#ccc; margin-top:20px;">Appuyez plusieurs fois pour masser !</p>
+        </div>
+
+        <!-- ELECTRODE MINIGAME - FRAMED -->
+        <div id="electrodes-overlay" class="overlay-game hidden" style="position:absolute; inset:0; z-index:50; background:rgba(0,0,0,0.85); display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <h2 style="color:white; margin-bottom:15px; font-family: 'Space Grotesk', sans-serif;">POSE DES ÉLECTRODES</h2>
+            
+            <div style="position:relative; width:90%; max-width:500px; aspect-ratio:1/1; 
+                        background: url('{{ url_for('static', filename='img/mission_acr/scene_4.png') }}') center/contain no-repeat; 
+                        border: 2px solid rgba(255,255,255,0.2); border-radius:12px; box-shadow: 0 0 30px rgba(0,0,0,0.5);">
+                
+                <!-- Click Zones Relative to the Graphic -->
+                <div id="zone-1" style="position:absolute; top:32%; left:30%; width:18%; height:18%; border:3px dashed #00f; border-radius:50%; cursor:pointer; background:rgba(0,0,255,0.1);"></div>
+                <div id="zone-2" style="position:absolute; top:52%; left:56%; width:18%; height:18%; border:3px dashed #00f; border-radius:50%; cursor:pointer; background:rgba(0,0,255,0.1);"></div>
+            </div>
+
+            <p style="color:#ccc; margin-top:20px; text-align:center;">Cliquez sur les zones bleues pour placer les électrodes.</p>
+        </div>
+
+        <div id="shock-overlay" class="overlay-game hidden" style="position:absolute; inset:0; z-index:50; background:rgba(255,0,0,0.3); display:flex; align-items:center; justify-content:center;">
+            <div style="text-align:center;">
+                <h1 style="color:white; text-transform:uppercase; margin-bottom:2rem; text-shadow:0 0 10px red;">Attention Choc !</h1>
+                <button id="shock-btn" class="btn critical" style="padding:2rem 4rem; font-size:2rem; box-shadow: 0 0 20px orangered;">⚡ DÉLIVRER CHOC ⚡</button>
             </div>
         </div>
 
@@ -238,7 +260,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
-    <script src="{{ url_for('static', filename='js/mission_interactive.js') }}?v=12"></script>
+    <script src="{{ url_for('static', filename='js/mission_interactive.js') }}?v=17"></script>
 </body>
 
 </html>

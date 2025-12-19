@@ -631,7 +631,7 @@ def register_routes(app: Flask) -> None:
         total_score = progress_scores + questionnaire_scores
 
         if level.slug == 'arret_cardiaque':
-            return render_template("mission_interactive.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
+            return render_template("mission_acr.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
         
         if level.slug == 'bilan_inconscient':
             return render_template("mission_bilan_inconscient.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
@@ -639,11 +639,12 @@ def register_routes(app: Flask) -> None:
         if level.slug == 'pendu_300':
             return render_template("mission_pendu.html", level=level, progress=progress, total_score=total_score)
 
-        if level.slug == 'quiz_dps' or level.category == 'minigame':
-            return render_template("mission_quiz_dps.html", level=level, progress=progress)
-        
         if level.slug == 'ambulance_chase':
             return render_template("mission_ambulance.html", level=level, progress=progress)
+
+        if level.slug == 'quiz_dps' or level.category == 'minigame':
+            print("DEBUG: Matched quiz/minigame block")
+            return render_template("mission_quiz_dps.html", level=level, progress=progress)
             
         return render_template("mission.html", level=level, progress=progress, avatar_emojis=AVATAR_EMOJIS)
 
@@ -1589,4 +1590,4 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000, debug=True)
+    app.run(host="0.0.0.0", port=8001, debug=True)

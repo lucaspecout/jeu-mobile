@@ -15,13 +15,13 @@
     <script>
         try {
             window.MISSION_CONTEXT = {
-                levelId: {{ level.id |default ('null') }
+                levelId: {{ level.id | default ('null') }
         },
         slug: { { level.slug | tojson | safe } },
         savedScore: { { (progress.score if progress else 0)| int } }
-      };
+            };
         console.log("[Inline] Context defined:", window.MISSION_CONTEXT);
-    } catch (e) {
+        } catch (e) {
             console.error("[Inline] Context Error:", e);
             window.MISSION_INLINE_ERROR = e.message;
         }

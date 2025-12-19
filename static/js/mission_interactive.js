@@ -138,12 +138,27 @@ function renderStep(data) {
 }
 
 async function handleChoice(choice, index, btnElement) {
+    // Visual Feedback (User Request)
+    if (choice.score >= 0 || choice.type === 'minigame') {
+        btnElement.style.background = 'rgba(46, 204, 113, 0.5)'; // Green
+        btnElement.style.borderColor = '#2ecc71';
+    } else {
+        btnElement.style.background = 'rgba(231, 76, 60, 0.5)'; // Red
+        btnElement.style.borderColor = '#e74c3c';
+    }
+
+    // Tiny delay to let user see the color
+    await new Promise(r => setTimeout(r, 500));
+
     logDebug("Choice clicked: " + index + " (" + choice.label + ")");
     try {
         const res = await fetch(`/api/mission/action/${MISSION_SLUG}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ choice_index: index })
+            body: JSON.stringify({
+                choice_index: index,
+                choice_label: choice.label
+            })
         });
         const data = await res.json();
         renderStep(data);
@@ -192,17 +207,83 @@ function startCPRMinigame() {
     const overlay = qs('#minigame-overlay');
     if (!overlay) return;
     overlay.classList.remove('hidden');
+
     const btn = qs('#cpr-btn');
     const display = qs('#bpm-counter');
-    let streak = 0;
+    const feedback = qs('#minigame-overlay p');
 
-    if (btn) btn.onclick = () => {
-        streak++;
-        if (streak >= 8) {
-            overlay.classList.add('hidden');
-            sendMinigameResult({ success: true, score: 10 });
+    let lastTime = 0;
+    let streak = 0;
+    let penalties = 0;
+    const TARGET_STREAK = 6;
+
+    if (btn) btn.onclick = (e) => {
+        // Visual click effect
+        btn.style.transform = "scale(0.9)";
+        setTimeout(() => btn.style.transform = "scale(1)", 100);
+
+        const now = Date.now();
+        if (lastTime === 0) {
+            lastTime = now;
+            if (display) display.textContent = "BPM: ...";
+            if (feedback) feedback.textContent = "Gardez le rythme !";
+            return;
         }
-        if (display) display.textContent = "BPM: " + (100 + Math.random() * 20).toFixed(0);
+
+        const delta = now - lastTime;
+        lastTime = now;
+
+        // Prevent absurdly fast clicks (debounce)
+        if (delta < 200) return;
+
+        const bpm = Math.round(60000 / delta);
+
+        // Logic
+        let color = 'red';
+        let msg = "Trop lent !";
+
+        if (bpm > 130) msg = "Trop vite !";
+        else if (bpm < 90) msg = "Trop lent !";
+
+        // Green: 100-120 (Optimal)
+        if (bpm >= 100 && bpm <= 120) {
+            color = '#2ecc71'; // Green
+            msg = "Parfait !";
+            streak++;
+        }
+        // Orange: 90-100 OR 120-130 (Acceptable)
+        else if ((bpm >= 90 && bpm < 100) || (bpm > 120 && bpm <= 130)) {
+            color = '#f39c12'; // Orange
+            msg = "Attention...";
+            streak++;
+        } else {
+            // Fail (Red)
+            color = '#e74c3c';
+            streak = 0;
+            penalties += 5;
+            msg += " (-5 pts)";
+        }
+
+        if (display) {
+            display.textContent = `BPM: ${bpm}`;
+            display.style.color = color;
+        }
+        if (feedback) {
+            feedback.textContent = `${msg} (Série: ${streak}/${TARGET_STREAK})`;
+            feedback.style.color = color;
+        }
+
+        if (streak >= TARGET_STREAK) {
+            btn.onclick = null; // Disable further clicks
+            streak = 0; // Reset just in case
+            const finalScore = Math.max(-100, 10 - penalties);
+            if (feedback) feedback.textContent = `VICTOIRE ! (${finalScore} pts)`;
+
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+                sendMinigameResult({ success: true, score: finalScore });
+            }, 800);
+        }
     };
 }
 

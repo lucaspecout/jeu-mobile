@@ -77,7 +77,8 @@ INTERACTIVE_SCENARIOS = {
             'choices': [
                 {'label': 'Sécuriser la zone (plots, gilet)', 'next': 'approach', 'score': 10},
                 {'label': 'Courir vers la victime', 'next': 'game_over_secu', 'score': -50}
-            ]
+            ],
+            'shuffle': True
         },
         {
             'id': 'approach',
@@ -88,7 +89,8 @@ INTERACTIVE_SCENARIOS = {
             'choices': [
                 {'label': 'Contrôler la respiration', 'next': 'diagnosis', 'score': 10},
                 {'label': 'Mettre en PLS', 'next': 'game_over_pls', 'score': -50, 'feedback': 'PLS interdite sans vérifier la respiration.'}
-            ]
+            ],
+            'shuffle': True
         },
         {
             'id': 'diagnosis',
@@ -99,7 +101,8 @@ INTERACTIVE_SCENARIOS = {
             'choices': [
                 {'label': 'Masser immédiatement (30:2)', 'next': 'cpr_loop', 'score': 20},
                 {'label': 'Prendre la tension', 'next': 'game_over_time', 'score': -50, 'feedback': 'Perte de temps critique.'}
-            ]
+            ],
+            'shuffle': True
         },
         {
             'id': 'cpr_loop',
@@ -136,7 +139,8 @@ INTERACTIVE_SCENARIOS = {
             'choices': [
                 {'label': 'Allumer le défibrillateur', 'next': 'minigame_electrodes', 'score': 10},
                 {'label': 'Poser les électrodes', 'next': 'bad_dae', 'score': -10}
-            ]
+            ],
+            'shuffle': True
         },
         
          {
@@ -421,6 +425,7 @@ class MissionEngine:
         self.score = 0
         self.history = []
         self.finished = False
+        self.choice_map = None
         
     def get_step_data(self):
         step = next((s for s in self.scenario if s['id'] == self.current_step_id), None)
