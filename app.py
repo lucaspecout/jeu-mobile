@@ -1,11 +1,13 @@
 import os
+import random
 from datetime import datetime
+from werkzeug.utils import secure_filename
 from flask import Flask, jsonify, redirect, render_template, request, session, url_for
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, inspect, text, JSON
 from sqlalchemy.orm.attributes import flag_modified
 from werkzeug.security import generate_password_hash, check_password_hash
-from game_engine import PenduGame, MissionEngine
+from game_engine import PenduGame, MissionEngine, PENDU_WORDS
 
 
 db = SQLAlchemy()
@@ -14,6 +16,7 @@ db = SQLAlchemy()
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SECRET_KEY", "dev-secret-key")
+    app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024
 
     database_url = os.environ.get("DATABASE_URL")
     if database_url and database_url.startswith("postgres://"):
@@ -171,6 +174,10 @@ AVATAR_EMOJIS = {
     "delta": "🧭",
 }
 USER_ROLES = {"participant", "formateur", "admin"}
+ALLOWED_UPLOAD_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "webp", "svg", "pdf"}
+ALLOWED_UPLOAD_MIMES = {"application/pdf"}
+LOGIN_ATTEMPT_LIMIT = 5
+LOGIN_ATTEMPT_WINDOW_SECONDS = 600
 
 
 def ensure_avatar_column():
@@ -443,6 +450,35 @@ def current_user():
         return None
     return User.query.get(user_id)
 
+def allow_login_attempt():
+    attempts = session.get("login_attempts", [])
+    now = datetime.utcnow().timestamp()
+    attempts = [ts for ts in attempts if now - ts < LOGIN_ATTEMPT_WINDOW_SECONDS]
+    if len(attempts) >= LOGIN_ATTEMPT_LIMIT:
+        session["login_attempts"] = attempts
+        session.modified = True
+        return False
+    attempts.append(now)
+    session["login_attempts"] = attempts
+    session.modified = True
+    return True
+
+
+def reset_login_attempts():
+    session.pop("login_attempts", None)
+
+
+def is_allowed_upload(file):
+    if not file or not file.filename:
+        return False
+    extension = file.filename.rsplit(".", 1)[-1].lower() if "." in file.filename else ""
+    if extension not in ALLOWED_UPLOAD_EXTENSIONS:
+        return False
+    if file.mimetype in ALLOWED_UPLOAD_MIMES:
+        return True
+    return file.mimetype.startswith("image/")
+
+
 def get_user_badges(points):
     badges = []
     if points >= 1000:
@@ -516,6 +552,7 @@ def register_routes(app: Flask) -> None:
         
         # Calculate current user's total score for trophies
         user_total_score = 0
+        pendu_completed = False
         if user:
             found = next((p for p in leaderboard if p["username"] == user.username), None)
             if found:
@@ -523,6 +560,13 @@ def register_routes(app: Flask) -> None:
             else:
                 # If not in leaderboard (e.g. no activity yet), minimal calculation
                 user_total_score = user.bonus_points
+            pendu_level = Level.query.filter_by(slug="pendu_300").first()
+            if pendu_level:
+                pendu_progress = Progress.query.filter_by(user_id=user.id, level_id=pendu_level.id).first()
+                if pendu_progress and pendu_progress.data:
+                    played_indices = pendu_progress.data.get("played_indices", [])
+                    won_count = pendu_progress.data.get("won_count", 0)
+                    pendu_completed = max(len(played_indices), won_count) >= len(PENDU_WORDS)
 
         trophies = [
             {
@@ -545,7 +589,7 @@ def register_routes(app: Flask) -> None:
                 "icon": "🧠",
                 "title": "Savant",
                 "description": "Lexique 300 terminé",
-                "earned": False, # Logic to implement
+                "earned": pendu_completed,
             },
             {
                 "category": "Collectif",
@@ -698,6 +742,8 @@ def register_routes(app: Flask) -> None:
 
         if not email or not data.get("password") or not data.get("username"):
             return jsonify({"error": "Champs manquants"}), 400
+        if len(data.get("password") or "") < 8:
+            return jsonify({"error": "Le mot de passe doit contenir au moins 8 caractères"}), 400
         if User.query.filter_by(email=email).first():
             return jsonify({"error": "Un compte existe déjà avec cet e-mail"}), 400
 
@@ -718,10 +764,13 @@ def register_routes(app: Flask) -> None:
         data = request.get_json() or {}
         email = (data.get("email") or "").lower()
         password = data.get("password")
+        if not allow_login_attempt():
+            return jsonify({"error": "Trop de tentatives, réessayez plus tard"}), 429
         user = User.query.filter_by(email=email).first()
         if not user or not user.verify_password(password or ""):
             return jsonify({"error": "Identifiants invalides"}), 401
         session["user_id"] = user.id
+        reset_login_attempts()
         return jsonify({"id": user.id, "username": user.username, "avatar": user.avatar})
 
     @app.route("/api/logout", methods=["POST"])
@@ -812,6 +861,8 @@ def register_routes(app: Flask) -> None:
         user.username = username.strip()
         user.avatar = avatar
         if password:
+            if len(password) < 8:
+                return jsonify({"error": "Le mot de passe doit contenir au moins 8 caractères"}), 400
             user.password_hash = generate_password_hash(password)
 
         db.session.commit()
@@ -1332,9 +1383,13 @@ def register_routes(app: Flask) -> None:
         existing = None
         if user:
             existing = QuestionnaireResult.query.filter_by(user_id=user.id, questionnaire_id=questionnaire.id).first()
-        return jsonify(
-            {**serialize_questionnaire(questionnaire, include_questions=True), "user_result": serialize_questionnaire_result(existing)}
-        )
+        payload = {**serialize_questionnaire(questionnaire, include_questions=True), "user_result": serialize_questionnaire_result(existing)}
+        if user.role not in {"admin", "formateur"}:
+            random.shuffle(payload["questions"])
+            for question in payload["questions"]:
+                if question.get("options"):
+                    random.shuffle(question["options"])
+        return jsonify(payload)
 
     @app.route("/api/questionnaires/<int:questionnaire_id>/result", methods=["POST"])
     def api_record_questionnaire_result(questionnaire_id: int):
@@ -1496,6 +1551,9 @@ def register_routes(app: Flask) -> None:
         if not user or user.role not in ['admin', 'formateur']:
              return jsonify({"error": "Unauthorized"}), 403
              
+        if request.content_length and request.content_length > app.config["MAX_CONTENT_LENGTH"]:
+            return jsonify({"error": "Fichier trop volumineux"}), 413
+             
         if 'file' not in request.files:
             return jsonify({"error": "No file part"}), 400
             
@@ -1504,7 +1562,10 @@ def register_routes(app: Flask) -> None:
             return jsonify({"error": "No selected file"}), 400
             
         if file:
-            filename = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}_{file.filename}"
+            if not is_allowed_upload(file):
+                return jsonify({"error": "Type de fichier non autorisé"}), 400
+            safe_name = secure_filename(file.filename)
+            filename = f"upload_{datetime.now().strftime('%Y%m%d%H%M%S')}_{safe_name}"
             # Ensure upload dir exists
             upload_folder = os.path.join(app.static_folder, 'uploads')
             os.makedirs(upload_folder, exist_ok=True)
